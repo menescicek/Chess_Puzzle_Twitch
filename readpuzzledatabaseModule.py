@@ -1,6 +1,7 @@
 import pandas as pd
 import random
 import chess
+import chess.svg
 import re
 import cairoModule as cm
 import time
@@ -11,19 +12,20 @@ board = None
 moves = None
 
 svgFile = 'pos.svg'
+WHITE = ""
+waitingTime = 1
 def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabaseFunction):
-    global index, board, moves
+    global index, board, moves, WHITE
 
 
     startReadingFunction()
+    n = 3000000
+    rand = random.randint(1, n)
 
-
-    randomNumber = random.randint(1, 3000000)
-
-    colnames = ['PuzzleId','FEN','Moves','Rating','RatingDeviation','Popularity','NbPlays','Themes','GameUrl','OpeningFamily','OpeningVariation']
-    df = pd.read_csv('DATABASE/lichess_db_puzzle.csv', on_bad_lines='skip', names= colnames, usecols=['FEN','Moves', 'Rating'])
-    print(randomNumber)
-    df = df.iloc[[randomNumber], [0, 1, 2]]
+    # colnames = ['PuzzleId','FEN','Moves','Rating','RatingDeviation','Popularity','NbPlays','Themes','GameUrl','OpeningFamily','OpeningVariation']
+    df = pd.read_csv('DATABASE/lichess_db_puzzle.csv', on_bad_lines='skip', skiprows= rand, nrows= 1)
+    print(df)
+    df = df.iloc[[0], [1, 2, 3]]
     fen = df.iloc[0][0]
     movesString = df.iloc[0][1]
     rating = df.iloc[0][2]
@@ -41,18 +43,25 @@ def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabase
 
     board = chess.Board()
     board.set_fen(fen)
+    WHITE = board.turn
 
+
+    print("Turn: ", board.turn)
     firstPosition(showPuzzleFromDatabaseFunction)
 
     stopReadingFunction()
 
-    time.sleep(1)
+    time.sleep(waitingTime)
     index = 0
     computerMove(index, showPuzzleFromDatabaseFunction)
 
 def firstPosition(func):
     with open(svgFile, 'w') as f:
-        f.write(chess.svg.board(board))
+        if WHITE:
+            f.write(chess.svg.board(board, orientation= chess.BLACK))
+        else:
+            f.write(chess.svg.board(board, orientation=chess.WHITE))
+
     puzzlePngFilePath = cm.convert2Png(svgFile)
     ans = ""
     func(puzzlePngFilePath, ans)
@@ -66,8 +75,13 @@ def computerMove(index, func):
     board.push_san(moveToPush)
 
     with open(svgFile, 'w') as f:
-        f.write(chess.svg.board(board, arrows=[
-            chess.svg.Arrow(helperModule.convertSquareToInt(firstSqr), helperModule.convertSquareToInt(secondSqr))]))
+        if WHITE:
+            f.write(chess.svg.board(board,orientation=chess.BLACK, arrows=[
+                chess.svg.Arrow(helperModule.convertSquareToInt(firstSqr), helperModule.convertSquareToInt(secondSqr))]))
+        else:
+            f.write(chess.svg.board(board, orientation=chess.WHITE, arrows=[
+                chess.svg.Arrow(helperModule.convertSquareToInt(firstSqr),
+                                helperModule.convertSquareToInt(secondSqr))]))
     puzzlePngFilePath = cm.convert2Png(svgFile)
 
 
