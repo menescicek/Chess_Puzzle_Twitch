@@ -14,7 +14,7 @@ moves = None
 svgFile = 'pos.svg'
 WHITE = ""
 waitingTime = 1
-def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabaseFunction):
+def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabaseFunction, showPuzzleInfoFunction, onExceptionFunction):
     global index, board, moves, WHITE
 
 
@@ -22,38 +22,55 @@ def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabase
     n = 3000000
     rand = random.randint(1, n)
 
-    # colnames = ['PuzzleId','FEN','Moves','Rating','RatingDeviation','Popularity','NbPlays','Themes','GameUrl','OpeningFamily','OpeningVariation']
-    df = pd.read_csv('DATABASE/lichess_db_puzzle.csv', on_bad_lines='skip', skiprows= rand, nrows= 1)
-    print(df)
-    df = df.iloc[[0], [1, 2, 3]]
-    fen = df.iloc[0][0]
-    movesString = df.iloc[0][1]
-    rating = df.iloc[0][2]
+    try:
+        colnames = ['PuzzleId','FEN','Moves','Rating','RatingDeviation','Popularity','NbPlays','Themes','GameUrl','OpeningFamily']
+        df = pd.read_csv('DATABASE/lichess_db_puzzle.csv', skiprows= rand, nrows= 1, names= colnames)
 
-    print("FEN:", fen)
-    print("Moves:", movesString)
-    print("Rating:", rating)
+        print(df.columns.values)
+        df = df.loc[: , ['FEN', 'Moves', 'Rating', 'Popularity', 'Themes', 'GameUrl']]
+        fen = df.iloc[0][0]
+        movesString = df.iloc[0][1]
+        rating = df.iloc[0][2]
+        popularity = df.iloc[0][3]
+        themes = df.iloc[0][4]
+        gameurl = df.iloc[0][5]
 
-
-    regex = r"\w+"
-    matches = re.finditer(regex, movesString)
-    moves = []
-    for matchNum, match in enumerate(matches, start=1):
-        moves.append(match.group())
-
-    board = chess.Board()
-    board.set_fen(fen)
-    WHITE = board.turn
+        data = [str(rating), str(popularity), str(themes), str(gameurl)]
 
 
-    print("Turn: ", board.turn)
-    firstPosition(showPuzzleFromDatabaseFunction)
+        print("FEN:", fen)
+        print("Moves:", movesString)
+        print("Rating:", rating)
+        print("Popularity:", popularity)
+        print("Themes:", themes)
+        print("Gameurl:", gameurl)
 
-    stopReadingFunction()
 
-    time.sleep(waitingTime)
-    index = 0
-    computerMove(index, showPuzzleFromDatabaseFunction)
+        regex = r"\w+"
+        matches = re.finditer(regex, movesString)
+        moves = []
+        for matchNum, match in enumerate(matches, start=1):
+            moves.append(match.group())
+
+        board = chess.Board()
+        board.set_fen(fen)
+        WHITE = board.turn
+
+    except Exception as e:
+        print("Bir hata oluştu:...::", e)
+        onExceptionFunction()
+        stopReadingFunction()
+    else:
+        showPuzzleInfoFunction(data)
+
+        print("Turn: ", board.turn)
+        firstPosition(showPuzzleFromDatabaseFunction)
+
+        stopReadingFunction()
+
+        time.sleep(waitingTime)
+        index = 0
+        computerMove(index, showPuzzleFromDatabaseFunction)
 
 def firstPosition(func):
     with open(svgFile, 'w') as f:
