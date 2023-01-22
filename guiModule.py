@@ -7,14 +7,22 @@ import asyncio
 import os
 import threading
 
-from twitchio.ext import commands
+from twitchio.ext import commands, pubsub
+from twitchio import PartialUser
 import readpuzzledatabaseModule as rpdm
 
-isPuzzleReady = False
-ans = None
+from glicko import Glicko, WIN, DRAW, LOSS
+from glicko2 import Glicko2
 
+rating = None
+ans = None
+subs = None
 scoreboard = dict()
 bot = None
+
+env = Glicko2(tau= 0.5)
+userRatingStart = env.create_rating(1500, 200, 0.06)
+
 class Bot(commands.Bot):
 
     def __init__(self):
@@ -22,11 +30,16 @@ class Bot(commands.Bot):
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
         # prefix can be a callable, which returns a list of strings or a string...
         # initial_channels can also be a callable which returns a list of strings...
-        super().__init__(token='1b2wcds4ipwp1qm3atlbpdm4t4m62j', prefix=".", initial_channels=['nimoniktr'])
+        super().__init__(token='gy0pwp2pf642rhmfulgjnekx3zzh9x', prefix=".", initial_channels=['nimoniktr'])
 
     async def event_ready(self):
+        global subs
         # Notify us when everything is ready!
         # We are logged in and ready to chat and use commands...
+        nimoniktr = await self.fetch_users(ids=[self.user_id])
+        subs = await nimoniktr[0].fetch_subscriptions(token= 'gy0pwp2pf642rhmfulgjnekx3zzh9x')
+        setupPatronsFrame(subs)
+
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
 
@@ -34,34 +47,51 @@ class Bot(commands.Bot):
     async def cevap(self, ctx: commands.Context):
         global ans
         ansByPlayer = ctx.message.content[3:]
-        if not isPuzzleReady:
-            await ctx.send(f'Puzzle hazır değil!')
-        else:
-            if ans == None:
-                await ctx.send('Bulmaca hazır değil!.')
-            elif ans == "":
-                await ctx.send(f'Doğru cevap zaten verildi. Bilgisayar oynayacak. Lütfen bekle !')
-            elif ans != "" and ans != None and  ansByPlayer == ans:
-                await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
-                ans = ""
-                scoreboard[f'{ctx.author.name}'] = scoreboard.get(f'{ctx.author.name}', 0) + 1
-                onPlayerFindsAnswer(scoreboard)
-                rpdm.onCorrectMoveFound(showPuzzleFromDatabase)
-            elif ans != "" and ans != None and ansByPlayer != ans:
-                await ctx.send(f'Yanlış cevap.')
+        if ans == None:
+            await ctx.send('Bulmaca hazır değil!.')
+        elif ans == "":
+            await ctx.send(f'Doğru cevap zaten verildi. Bilgisayar oynayacak. Lütfen bekle !')
+        elif ans != "" and ans != None and  ansByPlayer == ans:
+            await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
+            ans = ""
+
+            userInfo = scoreboard.get(f'{ctx.author.name}', (0, ctx.author.is_vip, userRatingStart))
+
+            playerRating = userInfo[2]
+
+            newRating = env.rate(playerRating, [(WIN, env.create_rating(int(rating), 30))])
+
+            print("uSERINFO2: ", userInfo[2])
+            scoreboard[f'{ctx.author.name}'] = (userInfo[0] + 1, userInfo[1], newRating)
+            onPlayerFindsAnswer(scoreboard)
+            rpdm.onCorrectMoveFound(showPuzzleFromDatabase)
+        elif ans != "" and ans != None and ansByPlayer != ans:
+
+            userInfo = scoreboard.get(f'{ctx.author.name}', (0, ctx.author.is_vip, userRatingStart))
+
+            playerRating = userInfo[2]
+
+            newRating = env.rate(playerRating, [(LOSS, env.create_rating(int(rating), 30))])
+
+            print("uSERINFO2: ", userInfo[2])
+            scoreboard[f'{ctx.author.name}'] = (userInfo[0] + 1, userInfo[1], newRating)
+            onPlayerFindsAnswer(scoreboard)
+
+            await ctx.send(f'Yanlış cevap.')
+
+
 
 def startTwitchBot():
     global bot
     bot = Bot()
-
     bot.run()
-
 ################################################################################
 
 
 root = None
 leftFrame = None
 rightFrame=None
+patronFrame = None
 
 puzzleFrame = None
 vsInfoFrame = None
@@ -79,25 +109,73 @@ gameurlLabel = None
 
 pb = None
 
-labelsInScoreboard = []
+framesInScoreboard = []
+
+def setupPatronsFrame(patrons):
+    for patron in patrons:
+        frame = Frame(patronFrame, width=300, height=50, bg= "#262421")
+        frame.pack_propagate(False)
+        frame.pack(side=TOP)
+
+        wingImg = Image.open("images/patron.png")
+        wingImg = wingImg.resize((20, 20))
+        img = ImageTk.PhotoImage(wingImg)
+        canvas = Canvas(frame, width=40, height=20, bg="#262421", borderwidth=0, highlightthickness=0)
+        canvas.create_image(10, 0, image=img, anchor=NW)
+        canvas.image = img
+        canvas.pack(side=LEFT)
+
+        contesterLabel = Label(frame, text=patron.user.name, bg="#262421", fg="#BABAAB", font=('Lucida Console', 13))
+        contesterLabel.pack(side=LEFT)
+
+
+def setupScoreboardFrame(value, bg, txt):
+
+    frame = Frame(rightFrame, width=300, height=50, bg=bg)
+    frame.pack_propagate(False)
+    frame.pack(side=TOP)
+
+    if value[1]:
+        print("vip:", value)
+        wingImg = Image.open("images/patron.png")
+        wingImg = wingImg.resize((20, 20))
+        img = ImageTk.PhotoImage(wingImg)
+        canvas = Canvas(frame, width=40, height=20, bg=bg, borderwidth=0, highlightthickness=0)
+        canvas.create_image(10, 0, image=img, anchor=NW)
+        canvas.image = img
+        canvas.pack(side=LEFT)
+
+        contesterLabel = Label(frame, text=txt, bg=bg, fg="#BABAAB", font=('Lucida Console', 13))
+        contesterLabel.pack(side=RIGHT)
+    else:
+        contesterLabel = Label(frame, text=txt, width=200, bg="red", fg="white",
+                               font=('Lucida Console', 14))
+        contesterLabel.pack(side=RIGHT)
+
+        return frame
 
 def onPlayerFindsAnswer(scoreboard):
-    for lblinScoreboard in labelsInScoreboard:
-        lblinScoreboard.destroy()
-    scoreboardSorted = dict(sorted(scoreboard.items(), key= lambda x:x[1], reverse = True))
-    print(scoreboardSorted)
+    for e in framesInScoreboard:
+        e.destroy()
+    scoreboardSorted = dict(sorted(scoreboard.items(), key= lambda x:int(x[1][2].mu), reverse = True))
+
     for count, (key, value) in enumerate(scoreboardSorted.items()):
-        txt = '{}{}'.format(str(key).ljust(20), str(value).rjust(4))
+
+
+        # txt = '{}{}'.format(str(key).ljust(20), str(value[0]).rjust(4))
+        txt = '{}{}'.format(str(key).ljust(20), str(int(value[2].mu)).rjust(4))
+
         if key == "reverse":
             break
         if count % 2 == 0:
-
-            contesterLabel = Label(rightFrame, text = txt , width = 300, height = 3, bg = "#262421", fg="#BABAAB", font = ('Lucida Console', 14))
+            contesterFrame = setupScoreboardFrame(value, "#262421", txt)
         else:
-            contesterLabel = Label(rightFrame, text= txt, width=300, height=3, bg="#302E2C", fg="#BABAAB", font = ('Lucida Console', 14))
-        labelsInScoreboard.append(contesterLabel)
-        contesterLabel.pack(side=TOP)
+            contesterFrame =  setupScoreboardFrame(value, "#302E2C", txt)
 
+        framesInScoreboard.append(contesterFrame)
+
+def onPlayerFindsAnswerRating():
+    pass
 def on_enter(btn):
     if btn != None and btn['state'] == "normal":
         btn['fg'] = "white"
@@ -125,9 +203,8 @@ def placePuzzleImage(imgFile):
     puzzleImageLabel.pack()
 
 def showPuzzleFromDatabase(pngFilePath, answ):
-    global isPuzzleReady, ans
+    global ans
 
-    isPuzzleReady = True
     ans = answ
 
     print("answer:", ans)
@@ -135,9 +212,10 @@ def showPuzzleFromDatabase(pngFilePath, answ):
     placePuzzleImage(pngFilePath)
 
 def showPuzzleInfo(data):
-    global ratingLabel, popularityLabel, themeLabel, gameurlLabel
+    global ratingLabel, popularityLabel, themeLabel, gameurlLabel, rating
 
-    ratingLabel = Label(puzzleInfoFrame, text = f"\n{data[0]}" , bg = "#262421", font = ("Arial", 15), fg="#BABAAB")
+    rating = data[0]
+    ratingLabel = Label(puzzleInfoFrame, text = f"\n{rating}" , bg = "#262421", font = ("Arial", 15), fg="#BABAAB")
     ratingLabel.pack()
 
     themeLabel = Label(vsInfoFrame, text = f"{data[2]}", bg = "#262421", font = ("Arial", 13), fg="#BABAAB")
@@ -199,14 +277,14 @@ def on_closing():
 def startGui():
     global root, nextBtn, revealBtn, puzzleFrame, \
         vsInfoFrame, issueLabel, leftFrame, \
-        generateButton, configureFrame, rightFrame, puzzleInfoFrame, getPuzzlesButton
+        generateButton, configureFrame, rightFrame, puzzleInfoFrame, getPuzzlesButton, patronFrame
 
     root = Tk()
     root.title("Lichess-Twitch Puzzle")
     root.resizable(False, False)
     root.config(bg = "#161512")
 
-    root.geometry("1200x800")
+    root.geometry("1550x800")
     root.grid_propagate(False)
 
     mainFrame = Frame(root, width=600, height=700, bg= "#262421")
@@ -232,10 +310,19 @@ def startGui():
     rightFrame = Frame(root, width = 300, height = 700)
     rightFrame.pack_propagate(False)
     rightFrame.config(bg = "#161512")
-    rightFrame.grid(row=0, column = 2)
+    rightFrame.grid(row=0, column = 2, padx = 10)
 
-    scoreboardLabel = Label(rightFrame, text=f'Puzzle Top 10', width=300, height=3, bg="#262421", fg="#BABAAB", font = ("Arial", 15))
-    scoreboardLabel.pack(side = TOP)
+    scoreboardTitle = Label(rightFrame, text=f'Puzzle Top 10', width=300, height=3, bg="#262421", fg="#BABAAB", font = ("Arial", 15))
+    scoreboardTitle.pack(side = TOP)
+
+    patronFrame = Frame(root, width=300, height=700)
+    patronFrame.pack_propagate(False)
+    patronFrame.config(bg="#161512")
+    patronFrame.grid(row=0, column=3)
+
+    patronsTitle = Label(patronFrame, text=f'Patrons', width=300, height=3, bg="#262421", fg="#BABAAB",
+                            font=("Arial", 15))
+    patronsTitle.pack(side=TOP)
 
     logoFrame = Frame(leftFrame, width=200, height=100, bg = "#161512")
     logoFrame.pack_propagate(False)
