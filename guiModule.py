@@ -7,12 +7,14 @@ import asyncio
 import os
 import threading
 
-from twitchio.ext import commands, pubsub
-from twitchio import PartialUser
+from twitchio.ext import commands
 import readpuzzledatabaseModule as rpdm
 
-from glicko import Glicko, WIN, DRAW, LOSS
+from glicko import WIN, LOSS
 from glicko2 import Glicko2
+
+import myGUI
+
 
 rating = None
 ans = None
@@ -38,7 +40,7 @@ class Bot(commands.Bot):
         # We are logged in and ready to chat and use commands...
         nimoniktr = await self.fetch_users(ids=[self.user_id])
         subs = await nimoniktr[0].fetch_subscriptions(token= 'gy0pwp2pf642rhmfulgjnekx3zzh9x')
-        setupPatronsFrame(subs)
+        fillAndDisplayPatronsFrame(subs)
 
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
@@ -46,52 +48,42 @@ class Bot(commands.Bot):
     @commands.command(name= ".")
     async def cevap(self, ctx: commands.Context):
         global ans
+
         ansByPlayer = ctx.message.content[3:]
+
         if ans == None:
             await ctx.send('Bulmaca hazır değil!.')
+
         elif ans == "":
             await ctx.send(f'Doğru cevap zaten verildi. Bilgisayar oynayacak. Lütfen bekle !')
+
         elif ans != "" and ans != None and  ansByPlayer == ans:
             await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
+
             ans = ""
-
-            userInfo = scoreboard.get(f'{ctx.author.name}', (0, ctx.author.is_vip, userRatingStart))
-
-            playerRating = userInfo[2]
-
-            newRating = env.rate(playerRating, [(WIN, env.create_rating(int(rating), 30))])
-
-            print("uSERINFO2: ", userInfo[2])
-            scoreboard[f'{ctx.author.name}'] = (userInfo[0] + 1, userInfo[1], newRating)
-            onPlayerFindsAnswer(scoreboard)
+            updateScoreboard(scoreboard, WIN, ctx)
+            sortAndDisplayScoreboard(scoreboard)
             rpdm.onCorrectMoveFound(showPuzzleFromDatabase)
+
         elif ans != "" and ans != None and ansByPlayer != ans:
-
-            userInfo = scoreboard.get(f'{ctx.author.name}', (0, ctx.author.is_vip, userRatingStart))
-
-            playerRating = userInfo[2]
-
-            newRating = env.rate(playerRating, [(LOSS, env.create_rating(int(rating), 30))])
-
-            print("uSERINFO2: ", userInfo[2])
-            scoreboard[f'{ctx.author.name}'] = (userInfo[0] + 1, userInfo[1], newRating)
-            onPlayerFindsAnswer(scoreboard)
-
             await ctx.send(f'Yanlış cevap.')
 
-
+            updateScoreboard(scoreboard, LOSS, ctx)
+            sortAndDisplayScoreboard(scoreboard)
 
 def startTwitchBot():
     global bot
     bot = Bot()
     bot.run()
+
+
 ################################################################################
 
 
 root = None
 leftFrame = None
-rightFrame=None
-patronFrame = None
+scoreboardFrame=None
+patronsFrame = None
 
 puzzleFrame = None
 vsInfoFrame = None
@@ -109,73 +101,59 @@ gameurlLabel = None
 
 pb = None
 
-framesInScoreboard = []
+allPlayers = []
 
-def setupPatronsFrame(patrons):
+def fillAndDisplayPatronsFrame(patrons):
     for patron in patrons:
-        frame = Frame(patronFrame, width=300, height=50, bg= "#262421")
-        frame.pack_propagate(False)
-        frame.pack(side=TOP)
 
-        wingImg = Image.open("images/patron.png")
-        wingImg = wingImg.resize((20, 20))
-        img = ImageTk.PhotoImage(wingImg)
-        canvas = Canvas(frame, width=40, height=20, bg="#262421", borderwidth=0, highlightthickness=0)
-        canvas.create_image(10, 0, image=img, anchor=NW)
-        canvas.image = img
-        canvas.pack(side=LEFT)
+        frame = myGUI.FrameOfGridsPackPlacement(patronsFrame, (300, 50), TOP, myGUI.LICHESSBGLIGHT)
 
-        contesterLabel = Label(frame, text=patron.user.name, bg="#262421", fg="#BABAAB", font=('Lucida Console', 13))
-        contesterLabel.pack(side=LEFT)
+        myGUI.ImageOnFrameGridPlacement(frame, "images/patron.png", (20, 20), myGUI.LICHESSBGLIGHT, (0, 0))
+
+        myGUI.LabelGridPlacement(frame, patron.user.name, myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, ('Lucida Console', 13), (0, 1))
 
 
-def setupScoreboardFrame(value, bg, txt):
+def addNewPlayerToScoreboardFrame(value, bg, txt):
 
-    frame = Frame(rightFrame, width=300, height=50, bg=bg)
-    frame.pack_propagate(False)
-    frame.pack(side=TOP)
+    newFrame = myGUI.FrameOfGridsPackPlacement(scoreboardFrame, (300, 50),  TOP, bg)
 
+    # if user vip
     if value[1]:
-        print("vip:", value)
-        wingImg = Image.open("images/patron.png")
-        wingImg = wingImg.resize((20, 20))
-        img = ImageTk.PhotoImage(wingImg)
-        canvas = Canvas(frame, width=40, height=20, bg=bg, borderwidth=0, highlightthickness=0)
-        canvas.create_image(10, 0, image=img, anchor=NW)
-        canvas.image = img
-        canvas.pack(side=LEFT)
+        myGUI.ImageOnFrameGridPlacement(newFrame, "images/patron.png", (20, 20), myGUI.LICHESSBGLIGHT, (0, 0))
 
-        contesterLabel = Label(frame, text=txt, bg=bg, fg="#BABAAB", font=('Lucida Console', 13))
-        contesterLabel.pack(side=RIGHT)
+        myGUI.LabelGridPlacement(newFrame, txt, bg, myGUI.FGWHITE, ('Lucida Console', 13), (0, 1))
     else:
-        contesterLabel = Label(frame, text=txt, width=200, bg="red", fg="white",
-                               font=('Lucida Console', 14))
-        contesterLabel.pack(side=RIGHT)
+        myGUI.LabelGridPlacement(newFrame, txt, bg, myGUI.FGWHITE, ('Lucida Console', 13), (0, 1))
 
-        return frame
+        return newFrame
 
-def onPlayerFindsAnswer(scoreboard):
-    for e in framesInScoreboard:
+def updateScoreboard(scoreboard, result, ctx):
+    userInfo = scoreboard.get(f'{ctx.author.name}', (0, ctx.author.is_vip, userRatingStart))
+
+    playerRating = userInfo[2]
+
+    newRating = env.rate(playerRating, [(result, env.create_rating(int(rating), 30))])
+
+    scoreboard[f'{ctx.author.name}'] = (userInfo[0] + 1, userInfo[1], newRating)
+
+def sortAndDisplayScoreboard(scoreboard):
+    for e in allPlayers:
         e.destroy()
     scoreboardSorted = dict(sorted(scoreboard.items(), key= lambda x:int(x[1][2].mu), reverse = True))
 
     for count, (key, value) in enumerate(scoreboardSorted.items()):
 
-
-        # txt = '{}{}'.format(str(key).ljust(20), str(value[0]).rjust(4))
         txt = '{}{}'.format(str(key).ljust(20), str(int(value[2].mu)).rjust(4))
 
         if key == "reverse":
             break
         if count % 2 == 0:
-            contesterFrame = setupScoreboardFrame(value, "#262421", txt)
+            newPlayerFrame = addNewPlayerToScoreboardFrame(value, "#262421", txt)
         else:
-            contesterFrame =  setupScoreboardFrame(value, "#302E2C", txt)
+            newPlayerFrame =  addNewPlayerToScoreboardFrame(value, "#302E2C", txt)
 
-        framesInScoreboard.append(contesterFrame)
+        allPlayers.append(newPlayerFrame)
 
-def onPlayerFindsAnswerRating():
-    pass
 def on_enter(btn):
     if btn != None and btn['state'] == "normal":
         btn['fg'] = "white"
@@ -277,108 +255,64 @@ def on_closing():
 def startGui():
     global root, nextBtn, revealBtn, puzzleFrame, \
         vsInfoFrame, issueLabel, leftFrame, \
-        generateButton, configureFrame, rightFrame, puzzleInfoFrame, getPuzzlesButton, patronFrame
+        generateButton, configureFrame, scoreboardFrame, puzzleInfoFrame, getPuzzlesButton, patronsFrame
 
-    root = Tk()
-    root.title("Lichess-Twitch Puzzle")
-    root.resizable(False, False)
-    root.config(bg = "#161512")
+#################################################################################################################################################
 
-    root.geometry("1550x800")
-    root.grid_propagate(False)
+    root = myGUI.RootWindowOfGrids("Lichess-Twitch Puzzle", "1550x800", myGUI.LICHESSBGDARKMAIN)
 
-    mainFrame = Frame(root, width=600, height=700, bg= "#262421")
-    mainFrame.grid_propagate(False)
-    mainFrame.grid(row=0, column=1, padx = 10)
+##################################################################################################################################################
 
-    dummyFrameMain = Frame(mainFrame, width = 600, height = 25, bg= "#262421")
-    dummyFrameMain.grid(row= 0, column = 0)
+    mainFrame = myGUI.FrameOfGridsGridPlacement(root, (600, 700), (0, 1), myGUI.LICHESSBGLIGHT)
+    myGUI.DummyFrameGridPlacement(mainFrame, (600, 25), (0, 0), myGUI.LICHESSBGLIGHT)
+    puzzleFrame = myGUI.FrameOfPacksGridPlacement(mainFrame, (600, 575), (1, 0), myGUI.LICHESSBGLIGHT)
+    vsInfoFrame = myGUI.FrameOfGridsGridPlacement(mainFrame, (600, 100), (2, 0), myGUI.LICHESSBGLIGHT)
 
-    puzzleFrame = Frame(mainFrame, width=600, height=575, bg= "#262421")
-    puzzleFrame.pack_propagate(False)
-    puzzleFrame.grid(row=1, column = 0)
+###################################################################################################################################################
 
-    vsInfoFrame = Frame(mainFrame, width = 600, height = 100, bg = "#262421")
-    vsInfoFrame.grid_propagate(False)
-    vsInfoFrame.grid(row = 2, column = 0)
+    leftFrame = myGUI.FrameOfGridsGridPlacement(root, (200, 700), (0, 0), myGUI.LICHESSBGDARKMAIN, 30, 10)
 
-    leftFrame = Frame(root, width=200, height=700)
-    leftFrame.grid_propagate(False)
-    leftFrame.config(bg = "#161512")
-    leftFrame.grid(row=0, column=0, padx=30, pady=10)
+    myGUI.DummyFrameGridPlacement(leftFrame, (200, 50), (0, 0), myGUI.LICHESSBGDARKMAIN)
 
-    rightFrame = Frame(root, width = 300, height = 700)
-    rightFrame.pack_propagate(False)
-    rightFrame.config(bg = "#161512")
-    rightFrame.grid(row=0, column = 2, padx = 10)
+    logoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (1, 0), myGUI.LICHESSBGDARKMAIN)
+    myGUI.ImageOnFramePackPlacement(logoFrame, "images/Lichess_logo_2019.png", (100, 100), myGUI.LICHESSBGDARKMAIN)
 
-    scoreboardTitle = Label(rightFrame, text=f'Puzzle Top 10', width=300, height=3, bg="#262421", fg="#BABAAB", font = ("Arial", 15))
-    scoreboardTitle.pack(side = TOP)
+    lichessOrgFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 150), (2, 0), myGUI.LICHESSBGDARKMAIN)
+    myGUI.LabelPackPlacement(lichessOrgFrame, "lichess.org", myGUI.LICHESSBGDARKMAIN, myGUI.FGGRAY, myGUI.FONT15, TOP, pady= 10)
 
-    patronFrame = Frame(root, width=300, height=700)
-    patronFrame.pack_propagate(False)
-    patronFrame.config(bg="#161512")
-    patronFrame.grid(row=0, column=3)
+    puzzleInfoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (3, 0), myGUI.LICHESSBGLIGHT)
 
-    patronsTitle = Label(patronFrame, text=f'Patrons', width=300, height=3, bg="#262421", fg="#BABAAB",
-                            font=("Arial", 15))
-    patronsTitle.pack(side=TOP)
+    myGUI.DummyFrameGridPlacement(leftFrame, (200, 50), (4, 0), myGUI.LICHESSBGDARKMAIN)
 
-    logoFrame = Frame(leftFrame, width=200, height=100, bg = "#161512")
-    logoFrame.pack_propagate(False)
-    logoFrame.grid(row=1, column=0)
-
-    dummyFrame2 = Frame(leftFrame, width=200, height=150, bg = "#161512")
-    dummyFrame2.pack_propagate(False)
-    dummyFrame2.grid(row=2, column=0)
-
-    dummyFrame = Frame(leftFrame, width=200, height=50, bg="#161512")
-    dummyFrame.pack_propagate(False)
-    dummyFrame.grid(row=0, column=0)
-
-    puzzleInfoFrame = Frame(leftFrame, width=200, height=100, bg="#262421")
-    puzzleInfoFrame.pack_propagate(False)
-    puzzleInfoFrame.grid(row=3, column=0)
-
-    dummyFrame3 = Frame(leftFrame, width=200, height=50, bg="#161512")
-    dummyFrame3.pack_propagate(False)
-    dummyFrame3.grid(row=4, column=0)
-
-    lichessOrgLabel = Label(dummyFrame2, text = "lichess.org", fg = "#BABABA", bg = "#161512", font = ("Arial", 15))
-    lichessOrgLabel.pack(pady = 10)
-
-    configureFrame = Frame(leftFrame, width=200, height= 100, bg= "#262421")
-    configureFrame.pack_propagate(False)
-    configureFrame.grid(row=5, column=0)
-
-
-    logoImg = Image.open("images/Lichess_logo_2019.png")
-    logoImg = logoImg.resize((100, 100))
-    img = ImageTk.PhotoImage(logoImg)
-    canvas = Canvas(logoFrame, bg="#161512", borderwidth = 0, highlightthickness = 0)
-    canvas.create_image(50, 0, image = img, anchor = NW)
-    canvas.pack()
-
-    getPuzzlesButton = Button(configureFrame, text="Random Puzzle", command= onClickGetPuzzles,
-                            width=30, height=3, bg="#373531", fg="#999999", borderwidth=0, highlightthickness=0,
-                            activebackground="#de5100", disabledforeground="black")
+    configureFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (5, 0), myGUI.LICHESSBGLIGHT)
+    getPuzzlesButton = Button(configureFrame, text="Random Puzzle", command=onClickGetPuzzles,
+                              width=30, height=3, bg="#373531", fg="#999999", borderwidth=0, highlightthickness=0,
+                              activebackground="#de5100", disabledforeground="black")
     getPuzzlesButton.bind("<Enter>", lambda event: on_enter(getPuzzlesButton))
     getPuzzlesButton.bind("<Leave>", lambda event: on_leave(getPuzzlesButton))
     getPuzzlesButton.pack(side=TOP)
 
-    issueLabel = Label(configureFrame, width =200,height = 2, bg= "#262421", fg = "#999999")
-    issueLabel.pack(side = BOTTOM)
+    issueLabel = myGUI.LabelPackPlacement(configureFrame, "", myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, myGUI.FONT15 , BOTTOM, width= 200, height= 2)
+
+######################################################################################################################################################
+
+    scoreboardFrame = myGUI.FrameOfPacksGridPlacement(root, (300, 700), (0, 2), myGUI.LICHESSBGDARKMAIN, 30)
+    myGUI.LabelPackPlacement(scoreboardFrame, 'Puzzle Top 10', myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP, width= 300, height = 3)
+
+######################################################################################################################################################
+    patronsFrame = myGUI.FrameOfPacksGridPlacement(root, (300, 700), (0, 3), myGUI.LICHESSBGDARKMAIN)
+    myGUI.LabelPackPlacement(patronsFrame, "Patrons", myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP, width= 300, height= 3)
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
-
     root.protocol("WM_DELETE_WINDOW", on_closing)
-
 
     root.mainloop()
 
 
-#######################################################################################################
-#######################################################################################################
+#######################################################################################################################################################
+#######################################################################################################################################################
+#######################################################################################################################################################
+
 
 event_loop_a = asyncio.new_event_loop()
 def run_loop(loop):
