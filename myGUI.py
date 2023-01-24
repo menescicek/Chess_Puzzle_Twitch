@@ -11,7 +11,7 @@ FGGRAY = "#BABABA"
 FGWHITE = "#999999"
 
 FONT15 = ("Arial", 15)
-
+FONT10 = ("Arial", 10)
 
 class RootWindowOfGrids(Tk):
     def __init__(self, title, geometry, bg):
@@ -126,13 +126,13 @@ class LabelGridPlacement(Label):
 class ImageOnFramePackPlacement():
     def __init__(self, frame, path, resize, bg, side=None):
         img = ImageTk.PhotoImage(Image.open(path).resize(resize))
-        canvas = Canvas(frame, bg=bg, borderwidth=0, highlightthickness=0)
+        canvas = Canvas(frame, bg=bg, borderwidth=0, highlightthickness=0, width = resize[0], height = resize[1])
         frame.img = img
         if side != None:
             canvas.pack(side = side)
         else:
             canvas.pack()
-        canvas.create_image(int(resize[0] / 2), 0, image=img, anchor=NW)
+        canvas.create_image(0, 0, image=img, anchor=NW)
 
 class ImageOnFrameGridPlacement():
     def __init__(self, frame, path, resize, bg, rowXcol):

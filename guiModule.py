@@ -7,7 +7,7 @@ import asyncio
 import os
 import threading
 
-from twitchio.ext import commands
+from twitchio.ext import commands, eventsub
 import readpuzzledatabaseModule as rpdm
 
 from glicko import WIN, LOSS
@@ -18,7 +18,7 @@ import myGUI
 
 rating = None
 ans = None
-subs = None
+subsAndStatus = []
 scoreboard = dict()
 bot = None
 
@@ -35,15 +35,37 @@ class Bot(commands.Bot):
         super().__init__(token='gy0pwp2pf642rhmfulgjnekx3zzh9x', prefix=".", initial_channels=['nimoniktr'])
 
     async def event_ready(self):
-        global subs
+        global subsAndStatus
         # Notify us when everything is ready!
         # We are logged in and ready to chat and use commands...
         nimoniktr = await self.fetch_users(ids=[self.user_id])
         subs = await nimoniktr[0].fetch_subscriptions(token= 'gy0pwp2pf642rhmfulgjnekx3zzh9x')
-        fillAndDisplayPatronsFrame(subs)
+
+        for sub in subs:
+            subsAndStatus.append([sub.user.name, False])
+        subsAndStatus.append(["yarabbi", False])
+        fillAndDisplayPatronsFrame()
 
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
+
+    # async def event_usernotice_subscription(self, metadata):
+    #     global subsAndStatus
+    #     nimoniktr = await self.fetch_users(ids=[self.user_id])
+    #     subsAndStatus = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
+    #     fillAndDisplayPatronsFrame()
+
+    async def event_join(self, channel, user):
+        print(user.name, "geldi.")
+        if changeStatusOnline(user):
+            sortAndDisplayScoreboard(scoreboard)
+            fillAndDisplayPatronsFrame()
+
+    async def event_part(self, user):
+        print(user.name, "ayrıldı")
+        if changeStatusOffline(user):
+            sortAndDisplayScoreboard(scoreboard)
+            fillAndDisplayPatronsFrame()
 
     @commands.command(name= ".")
     async def cevap(self, ctx: commands.Context):
@@ -59,7 +81,8 @@ class Bot(commands.Bot):
 
         elif ans != "" and ans != None and  ansByPlayer == ans:
             await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
-
+            userState = await self.event_userstate(ctx.author)
+            print(userState)
             ans = ""
             updateScoreboard(scoreboard, WIN, ctx)
             sortAndDisplayScoreboard(scoreboard)
@@ -102,39 +125,102 @@ gameurlLabel = None
 pb = None
 
 allPlayers = []
+patronsAllFrames = []
 
-def fillAndDisplayPatronsFrame(patrons):
-    for patron in patrons:
+def changeStatusOnline(user):
+    for e in subsAndStatus:
+        if e[0] == user.name and e[1] == False:
+            e[1] = True
+            print("Patron status is updated: ", user.name, " is online")
+            return True
+    return False
 
-        frame = myGUI.FrameOfGridsPackPlacement(patronsFrame, (300, 50), TOP, myGUI.LICHESSBGLIGHT)
+def changeStatusOffline(user):
+    for e in subsAndStatus:
+        if e[0] == user.name and e[1] == True:
+            e[1] = False
+            print("Patron status is updated: ", user.name, " is offline")
+            return True
+    return False
+def fillAndDisplayPatronsFrame( ):
+    global patronsAllFrames
 
-        myGUI.ImageOnFrameGridPlacement(frame, "images/patron.png", (20, 20), myGUI.LICHESSBGLIGHT, (0, 0))
+    for f in patronsAllFrames:
+        f.destroy()
 
-        myGUI.LabelGridPlacement(frame, patron.user.name, myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, ('Lucida Console', 13), (0, 1))
+    for count, patron in enumerate(subsAndStatus):
+        if count % 2 == 0:
+            frame = myGUI.FrameOfPacksPackPlacement(patronsFrame, (300, 40), TOP, myGUI.LICHESSBGLIGHT)
+            if patron[0] == "nimoniktr":
+                myGUI.ImageOnFramePackPlacement(frame, "images/patronBoss.png", (20, 20), myGUI.LICHESSBGLIGHT, LEFT)
+            else:
+                if patron[1]:
+                    myGUI.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), myGUI.LICHESSBGLIGHT, LEFT)
+                else:
+                    myGUI.ImageOnFramePackPlacement(frame, "images/patron.png", (20, 20), myGUI.LICHESSBGLIGHT, LEFT)
+
+            myGUI.LabelPackPlacement(frame, patron[0], myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+        else:
+            frame = myGUI.FrameOfPacksPackPlacement(patronsFrame, (300, 40), TOP, myGUI.LICHESSBGDARK)
+            if patron[0] == "nimoniktr":
+                myGUI.ImageOnFramePackPlacement(frame, "images/patronBoss.png", (20, 20), myGUI.LICHESSBGDARK, LEFT)
+            else:
+                if patron[1]:
+                    myGUI.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), myGUI.LICHESSBGDARK, LEFT)
+                else:
+                    myGUI.ImageOnFramePackPlacement(frame, "images/patron.png", (20, 20), myGUI.LICHESSBGDARK, LEFT)
+
+            myGUI.LabelPackPlacement(frame, patron[0], myGUI.LICHESSBGDARK, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+        patronsAllFrames.append(frame)
 
 
-def addNewPlayerToScoreboardFrame(value, bg, txt):
+def addNewPlayerToScoreboardFrame(value, bg, nameTxt, ratingTxt):
 
-    newFrame = myGUI.FrameOfGridsPackPlacement(scoreboardFrame, (300, 50),  TOP, bg)
+    newFrame = myGUI.FrameOfPacksPackPlacement(scoreboardFrame, (300, 40),  TOP, bg)
 
     # if user vip
-    if value[1]:
-        myGUI.ImageOnFrameGridPlacement(newFrame, "images/patron.png", (20, 20), myGUI.LICHESSBGLIGHT, (0, 0))
+    if value[1] and nameTxt != "nimoniktr":
+        isSubOnline = False
+        for e in subsAndStatus:
+            if nameTxt == e[0]:
+                isSubOnline = e[1]
 
-        myGUI.LabelGridPlacement(newFrame, txt, bg, myGUI.FGWHITE, ('Lucida Console', 13), (0, 1))
+        if isSubOnline:
+            myGUI.ImageOnFramePackPlacement(newFrame, "images/patronOnline.png", (20, 20), bg, LEFT)
+
+            myGUI.LabelPackPlacement(newFrame, nameTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+
+            myGUI.LabelPackPlacement(newFrame, ratingTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), RIGHT)
+        else:
+            myGUI.ImageOnFramePackPlacement(newFrame, "images/patron.png", (20, 20),  bg , LEFT)
+
+            myGUI.LabelPackPlacement(newFrame, nameTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+
+            myGUI.LabelPackPlacement(newFrame, ratingTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), RIGHT)
+    elif nameTxt == "nimoniktr":
+        myGUI.ImageOnFramePackPlacement(newFrame, "images/patronBoss.png", (20, 20), bg, LEFT)
+
+        myGUI.LabelPackPlacement(newFrame, nameTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+
+        myGUI.LabelPackPlacement(newFrame, ratingTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), RIGHT)
     else:
-        myGUI.LabelGridPlacement(newFrame, txt, bg, myGUI.FGWHITE, ('Lucida Console', 13), (0, 1))
+        myGUI.ImageOnFramePackPlacement(newFrame, "images/online.png", (20, 20), bg, LEFT)
 
-        return newFrame
+        myGUI.LabelPackPlacement(newFrame, nameTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+
+        myGUI.LabelPackPlacement(newFrame, ratingTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), RIGHT)
+
+    return newFrame
 
 def updateScoreboard(scoreboard, result, ctx):
-    userInfo = scoreboard.get(f'{ctx.author.name}', (0, ctx.author.is_vip, userRatingStart))
+    userInfo = scoreboard.get(f'{ctx.author.name}', [0, ctx.author.is_subscriber, userRatingStart])
 
     playerRating = userInfo[2]
 
     newRating = env.rate(playerRating, [(result, env.create_rating(int(rating), 30))])
-
-    scoreboard[f'{ctx.author.name}'] = (userInfo[0] + 1, userInfo[1], newRating)
+    if ctx.author.name == "yarabbi":
+        userInfo[1] = True
+    scoreboard[f'{ctx.author.name}'] = [userInfo[0] + 1, userInfo[1], newRating]
 
 def sortAndDisplayScoreboard(scoreboard):
     for e in allPlayers:
@@ -143,14 +229,14 @@ def sortAndDisplayScoreboard(scoreboard):
 
     for count, (key, value) in enumerate(scoreboardSorted.items()):
 
-        txt = '{}{}'.format(str(key).ljust(20), str(int(value[2].mu)).rjust(4))
-
+        nameTxt = str(key)
+        ratingTxt = str(int(value[2].mu))
         if key == "reverse":
             break
         if count % 2 == 0:
-            newPlayerFrame = addNewPlayerToScoreboardFrame(value, "#262421", txt)
+            newPlayerFrame = addNewPlayerToScoreboardFrame(value, "#262421", nameTxt, ratingTxt)
         else:
-            newPlayerFrame =  addNewPlayerToScoreboardFrame(value, "#302E2C", txt)
+            newPlayerFrame =  addNewPlayerToScoreboardFrame(value, "#302E2C", nameTxt, ratingTxt)
 
         allPlayers.append(newPlayerFrame)
 
@@ -277,14 +363,18 @@ def startGui():
     logoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (1, 0), myGUI.LICHESSBGDARKMAIN)
     myGUI.ImageOnFramePackPlacement(logoFrame, "images/Lichess_logo_2019.png", (100, 100), myGUI.LICHESSBGDARKMAIN)
 
-    lichessOrgFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 150), (2, 0), myGUI.LICHESSBGDARKMAIN)
+    lichessOrgFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (2, 0), myGUI.LICHESSBGDARKMAIN)
     myGUI.LabelPackPlacement(lichessOrgFrame, "lichess.org", myGUI.LICHESSBGDARKMAIN, myGUI.FGGRAY, myGUI.FONT15, TOP, pady= 10)
 
-    puzzleInfoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (3, 0), myGUI.LICHESSBGLIGHT)
+    streamerWingFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (3, 0), myGUI.LICHESSBGDARKMAIN, padY= 50)
+    myGUI.ImageOnFramePackPlacement(streamerWingFrame, "images/WingFlame.png", (50, 50), myGUI.LICHESSBGDARKMAIN, TOP)
+    myGUI.LabelPackPlacement(streamerWingFrame, "Nimoniktr", myGUI.LICHESSBGDARKMAIN, myGUI.FGWHITE, myGUI.FONT15, BOTTOM)
 
-    myGUI.DummyFrameGridPlacement(leftFrame, (200, 50), (4, 0), myGUI.LICHESSBGDARKMAIN)
+    puzzleInfoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (4, 0), myGUI.LICHESSBGLIGHT)
 
-    configureFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (5, 0), myGUI.LICHESSBGLIGHT)
+    myGUI.DummyFrameGridPlacement(leftFrame, (200, 50), (5, 0), myGUI.LICHESSBGDARKMAIN)
+
+    configureFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (6, 0), myGUI.LICHESSBGLIGHT)
     getPuzzlesButton = Button(configureFrame, text="Random Puzzle", command=onClickGetPuzzles,
                               width=30, height=3, bg="#373531", fg="#999999", borderwidth=0, highlightthickness=0,
                               activebackground="#de5100", disabledforeground="black")
@@ -292,7 +382,7 @@ def startGui():
     getPuzzlesButton.bind("<Leave>", lambda event: on_leave(getPuzzlesButton))
     getPuzzlesButton.pack(side=TOP)
 
-    issueLabel = myGUI.LabelPackPlacement(configureFrame, "", myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, myGUI.FONT15 , BOTTOM, width= 200, height= 2)
+    issueLabel = myGUI.LabelPackPlacement(configureFrame, "", myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, myGUI.FONT10 , BOTTOM, width= 200, height= 2)
 
 ######################################################################################################################################################
 
