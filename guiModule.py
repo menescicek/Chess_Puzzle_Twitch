@@ -15,14 +15,13 @@ from glicko2 import Glicko2
 
 import myGUI
 
-
-rating = None
+puzzleRating = None
 ans = None
 subsAndStatus = []
 scoreboard = dict()
 bot = None
 
-env = Glicko2(tau= 0.5)
+env = Glicko2(tau=0.5)
 userRatingStart = env.create_rating(1500, 200, 0.06)
 
 class Bot(commands.Bot):
@@ -36,24 +35,20 @@ class Bot(commands.Bot):
 
     async def event_ready(self):
         global subsAndStatus
-        # Notify us when everything is ready!
-        # We are logged in and ready to chat and use commands...
+
         nimoniktr = await self.fetch_users(ids=[self.user_id])
-        subs = await nimoniktr[0].fetch_subscriptions(token= 'gy0pwp2pf642rhmfulgjnekx3zzh9x')
+        subs = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
 
         for sub in subs:
             subsAndStatus.append([sub.user.name, False])
         subsAndStatus.append(["yarabbi", False])
+
         fillAndDisplayPatronsFrame()
 
+        # Notify us when everything is ready!
+        # We are logged in and ready to chat and use commands...
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
-
-    # async def event_usernotice_subscription(self, metadata):
-    #     global subsAndStatus
-    #     nimoniktr = await self.fetch_users(ids=[self.user_id])
-    #     subsAndStatus = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
-    #     fillAndDisplayPatronsFrame()
 
     async def event_join(self, channel, user):
         print(user.name, "joined..")
@@ -67,7 +62,7 @@ class Bot(commands.Bot):
             sortAndDisplayScoreboard(scoreboard)
             fillAndDisplayPatronsFrame()
 
-    @commands.command(name= ".")
+    @commands.command(name=".")
     async def cevap(self, ctx: commands.Context):
         global ans
 
@@ -79,7 +74,7 @@ class Bot(commands.Bot):
         elif ans == "":
             await ctx.send(f'Doğru cevap zaten verildi. Bilgisayar oynayacak. Lütfen bekle !')
 
-        elif ans != "" and ans != None and  ansByPlayer == ans:
+        elif ans != "" and ans != None and ansByPlayer == ans:
             ans = ""
             await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
             updateScoreboard(scoreboard, WIN, ctx)
@@ -92,6 +87,7 @@ class Bot(commands.Bot):
             updateScoreboard(scoreboard, LOSS, ctx)
             sortAndDisplayScoreboard(scoreboard)
 
+
 def startTwitchBot():
     global bot
     bot = Bot()
@@ -103,7 +99,7 @@ def startTwitchBot():
 
 root = None
 leftFrame = None
-scoreboardFrame=None
+scoreboardFrame = None
 patronsFrame = None
 
 puzzleFrame = None
@@ -124,7 +120,6 @@ pb = None
 
 allPlayers = []
 patronsAllFrames = []
-dbPlayers = []
 
 
 def replace(file, pattern, subst):
@@ -144,11 +139,29 @@ def replace(file, pattern, subst):
     file_handle.write(file_string)
     file_handle.close()
 
-def readDatabase():
+
+def getPlayerRatingFromRatingsDatabaseFile(playerName):
+    with open("ratingDatabase.txt", "r") as file1:
+        lines = file1.read()
+        regex = fr"{playerName}\t.*$"
+        matches = re.finditer(regex, lines, re.MULTILINE)
+
+        for matchNum, match in enumerate(matches, start=1):
+            playerRecord = match.group()
+    tokens = playerRecord.split("\t")
+    mu = tokens[1]
+    sigma = tokens[2]
+    volatility = tokens[3]
+
+    return env.create_rating(float(mu), float(sigma), float(volatility))
+
+
+def getPlayersFromRatingsDatabaseFile():
+    dbPlayers = []
     with open("ratingDatabase.txt", "r") as file1:
         lines = file1.read()
 
-        regex = r"\w+\t"
+        regex = r"^\w+\t"
         matches = re.finditer(regex, lines, re.MULTILINE)
 
         for matchNum, match in enumerate(matches, start=1):
@@ -156,16 +169,17 @@ def readDatabase():
             dbPlayers.append(player.strip())
 
     print("Databasedeki oyuncular:", dbPlayers)
+    return dbPlayers
 
-
-def saveRatingsToFile():
+def saveRatingsToDatabaseFile():
+    dbPlayers = getPlayersFromRatingsDatabaseFile()
     for key, value in scoreboard.items():
         if key in dbPlayers:
-            replace("ratingDatabase.txt", r"{}\t\[.*?\]".format(key), f"{key}\t{value}")
+            replace("ratingDatabase.txt", r"{}.*".format(key), f"{key}\t{value[2].mu}\t{value[2].sigma}\t{value[2].volatility}")
         else:
             print("key databasede mevcut değil o yüzden a+ çalıştırıldı.")
-            with open("ratingDatabase.txt", "r+") as file1:
-                file1.write(f"{key}\t{value}\n")
+            with open("ratingDatabase.txt", "a+") as file1:
+                file1.write(f"\n{key}\t{value[2].mu}\t{value[2].sigma}\t{value[2].volatility}")
 
 
 def changeStatusOnline(user):
@@ -176,6 +190,7 @@ def changeStatusOnline(user):
             return True
     return False
 
+
 def changeStatusOffline(user):
     for e in subsAndStatus:
         if e[0] == user.name and e[1] == True:
@@ -183,7 +198,9 @@ def changeStatusOffline(user):
             print("Patron status is updated: ", user.name, " is offline")
             return True
     return False
-def fillAndDisplayPatronsFrame( ):
+
+
+def fillAndDisplayPatronsFrame():
     global patronsAllFrames
 
     for f in patronsAllFrames:
@@ -196,18 +213,21 @@ def fillAndDisplayPatronsFrame( ):
                 myGUI.ImageOnFramePackPlacement(frame, "images/patronBoss.png", (20, 20), myGUI.LICHESSBGLIGHT, LEFT)
             else:
                 if patron[1]:
-                    myGUI.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), myGUI.LICHESSBGLIGHT, LEFT)
+                    myGUI.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), myGUI.LICHESSBGLIGHT,
+                                                    LEFT)
                 else:
                     myGUI.ImageOnFramePackPlacement(frame, "images/patron.png", (20, 20), myGUI.LICHESSBGLIGHT, LEFT)
 
-            myGUI.LabelPackPlacement(frame, patron[0], myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
+            myGUI.LabelPackPlacement(frame, patron[0], myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, ('Lucida Console', 13),
+                                     LEFT)
         else:
             frame = myGUI.FrameOfPacksPackPlacement(patronsFrame, (300, 40), TOP, myGUI.LICHESSBGDARK)
             if patron[0] == "nimoniktr":
                 myGUI.ImageOnFramePackPlacement(frame, "images/patronBoss.png", (20, 20), myGUI.LICHESSBGDARK, LEFT)
             else:
                 if patron[1]:
-                    myGUI.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), myGUI.LICHESSBGDARK, LEFT)
+                    myGUI.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), myGUI.LICHESSBGDARK,
+                                                    LEFT)
                 else:
                     myGUI.ImageOnFramePackPlacement(frame, "images/patron.png", (20, 20), myGUI.LICHESSBGDARK, LEFT)
 
@@ -216,8 +236,7 @@ def fillAndDisplayPatronsFrame( ):
 
 
 def addNewPlayerToScoreboardFrame(value, bg, nameTxt, ratingTxt):
-
-    newFrame = myGUI.FrameOfPacksPackPlacement(scoreboardFrame, (300, 40),  TOP, bg)
+    newFrame = myGUI.FrameOfPacksPackPlacement(scoreboardFrame, (300, 40), TOP, bg)
 
     # if user sub
     if value[1] and nameTxt != "nimoniktr":
@@ -233,7 +252,7 @@ def addNewPlayerToScoreboardFrame(value, bg, nameTxt, ratingTxt):
 
             myGUI.LabelPackPlacement(newFrame, ratingTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), RIGHT)
         else:
-            myGUI.ImageOnFramePackPlacement(newFrame, "images/patron.png", (20, 20),  bg , LEFT)
+            myGUI.ImageOnFramePackPlacement(newFrame, "images/patron.png", (20, 20), bg, LEFT)
 
             myGUI.LabelPackPlacement(newFrame, nameTxt, bg, myGUI.FGWHITE, ('Lucida Console', 13), LEFT)
 
@@ -253,20 +272,26 @@ def addNewPlayerToScoreboardFrame(value, bg, nameTxt, ratingTxt):
 
     return newFrame
 
+
 def updateScoreboard(scoreboard, result, ctx):
-    userInfo = scoreboard.get(f'{ctx.author.name}', [0, ctx.author.is_subscriber, userRatingStart])
+    dbPlayers = getPlayersFromRatingsDatabaseFile()
+    if ctx.author.name in dbPlayers:
+        userInfo = scoreboard.get(f'{ctx.author.name}', [0, ctx.author.is_subscriber, getPlayerRatingFromRatingsDatabaseFile(ctx.author.name)])
+    else:
+        userInfo = scoreboard.get(f'{ctx.author.name}', [0, ctx.author.is_subscriber, userRatingStart])
 
     playerRating = userInfo[2]
 
-    newRating = env.rate(playerRating, [(result, env.create_rating(int(rating), 30))])
+    newRating = env.rate(playerRating, [(result, env.create_rating(float(puzzleRating), 30))])
     if ctx.author.name == "yarabbi":
         userInfo[1] = True
     scoreboard[f'{ctx.author.name}'] = [userInfo[0] + 1, userInfo[1], newRating]
 
+
 def sortAndDisplayScoreboard(scoreboard):
     for e in allPlayers:
         e.destroy()
-    scoreboardSorted = dict(sorted(scoreboard.items(), key= lambda x:int(x[1][2].mu), reverse = True))
+    scoreboardSorted = dict(sorted(scoreboard.items(), key=lambda x: int(x[1][2].mu), reverse=True))
 
     for count, (key, value) in enumerate(scoreboardSorted.items()):
 
@@ -277,56 +302,79 @@ def sortAndDisplayScoreboard(scoreboard):
         if count % 2 == 0:
             newPlayerFrame = addNewPlayerToScoreboardFrame(value, "#262421", nameTxt, ratingTxt)
         else:
-            newPlayerFrame =  addNewPlayerToScoreboardFrame(value, "#302E2C", nameTxt, ratingTxt)
+            newPlayerFrame = addNewPlayerToScoreboardFrame(value, "#302E2C", nameTxt, ratingTxt)
 
         allPlayers.append(newPlayerFrame)
+
 
 def on_enter(btn):
     if btn != None and btn['state'] == "normal":
         btn['fg'] = "white"
+
 
 def on_leave(btn):
     if btn != None and btn['state'] == "normal":
         btn['fg'] = "#999999"
 
 
-
-def placePuzzleImage(imgFile):
+def placePuzzleImage(imgFile, isLastMove = False):
     global puzzleImageLabel
     if puzzleImageLabel != None:
         puzzleImageLabel.destroy()
+    if not isLastMove:
+        img = Image.open(imgFile)
 
-    img = Image.open(imgFile)
+        # Create a photoimage object of the image in the path
+        test = ImageTk.PhotoImage(img.resize((500, 500)))
 
-    # Create a photoimage object of the image in the path
-    test = ImageTk.PhotoImage(img.resize((500, 500)))
+        puzzleImageLabel = Label(puzzleFrame, width=600, height=600, image=test, bg="#262421")
+        puzzleImageLabel.image = test
 
-    puzzleImageLabel = Label(puzzleFrame, width = 600, height = 600, image=test, bg="#262421")
-    puzzleImageLabel.image = test
+        # Position image
+        puzzleImageLabel.pack()
+    else:
+        img = Image.open("images/solved.png")
 
-    # Position image
-    puzzleImageLabel.pack()
+        background = Image.open(imgFile)
 
-def showPuzzleFromDatabase(pngFilePath, answ):
+        background.paste(img, (0, 0), img)
+        background.save('NewImg.png', "PNG")
+
+        NewImg = Image.open('NewImg.png')
+
+        # Use Image
+        test = ImageTk.PhotoImage(NewImg.resize((500, 500)))
+
+        puzzleImageLabel = Label(puzzleFrame, width=600, height=600, image=test, bg="#262421")
+        puzzleImageLabel.image = test
+
+        # Position image
+        puzzleImageLabel.pack()
+
+
+
+def showPuzzleFromDatabase(pngFilePath, answ, isLastMove = False):
     global ans
 
     ans = answ
 
     print("answer:", ans)
 
-    placePuzzleImage(pngFilePath)
+    placePuzzleImage(pngFilePath, isLastMove)
+
 
 def showPuzzleInfo(data):
-    global ratingLabel, popularityLabel, themeLabel, gameurlLabel, rating
+    global ratingLabel, popularityLabel, themeLabel, gameurlLabel, puzzleRating
 
-    rating = data[0]
-    ratingLabel = Label(puzzleInfoFrame, text = f"\n{rating}" , bg = "#262421", font = ("Arial", 15), fg="#BABAAB")
+    puzzleRating = data[0]
+    ratingLabel = Label(puzzleInfoFrame, text=f"\n{puzzleRating}", bg="#262421", font=("Roboto", 18), fg="#BABAAB")
     ratingLabel.pack()
+    #
+    # themeLabel = Label(vsInfoFrame, text=f"{data[2]}", bg="#262421", font=("Arial", 13), fg="#BABAAB")
+    # themeLabel.pack()
+    # gameurlLabel = Label(vsInfoFrame, text=f"{data[3]}", bg="#262421", font=("Arial", 13), fg="#BABAAB")
+    # gameurlLabel.pack()
 
-    themeLabel = Label(vsInfoFrame, text = f"{data[2]}", bg = "#262421", font = ("Arial", 13), fg="#BABAAB")
-    themeLabel.pack()
-    gameurlLabel = Label(vsInfoFrame, text = f"{data[3]}", bg = "#262421", font = ("Arial", 13), fg="#BABAAB")
-    gameurlLabel.pack()
 
 def deletePuzzleInfo():
     if ratingLabel != None:
@@ -335,69 +383,78 @@ def deletePuzzleInfo():
         themeLabel.destroy()
     if gameurlLabel != None:
         gameurlLabel.destroy()
-    issueLabel.config(text = "")
+    issueLabel.config(text="")
+
 
 def showProgressbar():
     global pb
     s = tkinter.ttk.Style()
     s.theme_use('clam')
-    s.configure("red.Horizontal.TProgressbar", foreground="#B47A1D", background= "white")
+    s.configure("red.Horizontal.TProgressbar", foreground="#B47A1D", background="white")
     # style = "red.Horizontal.TProgressbar"
     print(configureFrame)
 
-    pb = tkinter.ttk.Progressbar(configureFrame, style = "red.Horizontal.TProgressbar",  mode='indeterminate', length=200)
+    pb = tkinter.ttk.Progressbar(configureFrame, style="red.Horizontal.TProgressbar", mode='indeterminate', length=200)
     pb.start()
-    pb.pack(side = BOTTOM)
+    pb.pack(side=BOTTOM)
+
 
 def deleteProgressbar():
     pb.destroy()
+
 
 def startReading():
     deletePuzzleInfo()
     getPuzzlesButton["state"] = "disabled"
     showProgressbar()
 
+
 def stopReading():
     getPuzzlesButton["state"] = "normal"
     deleteProgressbar()
 
+
 def onExceptionOccured():
     global ans
     ans = None
-    issueLabel.config(text= "Corrupted database try again!")
+    issueLabel.config(text="Corrupted database try again!")
     getPuzzlesButton["state"] = "normal"
+
 
 def onClickGetPuzzles():
     global ans
     ans = None
-    t = threading.Thread(target=lambda : rpdm.getPuzzles(startReading, stopReading, showPuzzleFromDatabase, showPuzzleInfo, onExceptionOccured))
+    t = threading.Thread(
+        target=lambda: rpdm.getPuzzles(startReading, stopReading, showPuzzleFromDatabase, showPuzzleInfo,
+                                       onExceptionOccured))
     t.start()
 
+
 def onExit():
-    readDatabase()
-    saveRatingsToFile()
+    saveRatingsToDatabaseFile()
     for fname in os.listdir(os.getcwd()):
         if fname.startswith("pos") or fname.startswith("outputpos"):
             os.remove(fname)
     root.destroy()
+
 
 def startGui():
     global root, nextBtn, revealBtn, puzzleFrame, \
         vsInfoFrame, issueLabel, leftFrame, \
         generateButton, configureFrame, scoreboardFrame, puzzleInfoFrame, getPuzzlesButton, patronsFrame
 
-#################################################################################################################################################
+    #################################################################################################################################################
 
     root = myGUI.RootWindowOfGrids("Lichess-Twitch Puzzle", "1550x800", myGUI.LICHESSBGDARKMAIN)
 
-##################################################################################################################################################
+    ##################################################################################################################################################
 
     mainFrame = myGUI.FrameOfGridsGridPlacement(root, (600, 700), (0, 1), myGUI.LICHESSBGLIGHT)
     myGUI.DummyFrameGridPlacement(mainFrame, (600, 25), (0, 0), myGUI.LICHESSBGLIGHT)
     puzzleFrame = myGUI.FrameOfPacksGridPlacement(mainFrame, (600, 575), (1, 0), myGUI.LICHESSBGLIGHT)
     vsInfoFrame = myGUI.FrameOfGridsGridPlacement(mainFrame, (600, 100), (2, 0), myGUI.LICHESSBGLIGHT)
 
-###################################################################################################################################################
+    ###################################################################################################################################################
 
     leftFrame = myGUI.FrameOfGridsGridPlacement(root, (200, 700), (0, 0), myGUI.LICHESSBGDARKMAIN, 30, 10)
 
@@ -407,13 +464,15 @@ def startGui():
     myGUI.ImageOnFramePackPlacement(logoFrame, "images/Lichess_logo_2019.png", (100, 100), myGUI.LICHESSBGDARKMAIN)
 
     lichessOrgFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (2, 0), myGUI.LICHESSBGDARKMAIN)
-    myGUI.LabelPackPlacement(lichessOrgFrame, "lichess.org", myGUI.LICHESSBGDARKMAIN, myGUI.FGGRAY, myGUI.FONT15, TOP, pady= 10)
+    myGUI.LabelPackPlacement(lichessOrgFrame, "lichess.org", myGUI.LICHESSBGDARKMAIN, myGUI.FGGRAY, myGUI.FONT15, TOP,
+                             pady=10)
 
-    streamerWingFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (3, 0), myGUI.LICHESSBGDARKMAIN, padY= 50)
+    streamerWingFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (3, 0), myGUI.LICHESSBGDARKMAIN, padY=50)
     myGUI.ImageOnFramePackPlacement(streamerWingFrame, "images/WingFlame.png", (50, 50), myGUI.LICHESSBGDARKMAIN, TOP)
-    myGUI.LabelPackPlacement(streamerWingFrame, "Nimoniktr", myGUI.LICHESSBGDARKMAIN, myGUI.FGWHITE, myGUI.FONT15, BOTTOM)
+    myGUI.LabelPackPlacement(streamerWingFrame, "Nimoniktr", myGUI.LICHESSBGDARKMAIN, myGUI.FGWHITE, myGUI.FONT15,
+                             BOTTOM)
 
-    puzzleInfoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 100), (4, 0), myGUI.LICHESSBGLIGHT)
+    puzzleInfoFrame = myGUI.FrameOfPacksGridPlacement(leftFrame, (200, 80), (4, 0), myGUI.LICHESSBGLIGHT)
 
     myGUI.DummyFrameGridPlacement(leftFrame, (200, 50), (5, 0), myGUI.LICHESSBGDARKMAIN)
 
@@ -425,16 +484,19 @@ def startGui():
     getPuzzlesButton.bind("<Leave>", lambda event: on_leave(getPuzzlesButton))
     getPuzzlesButton.pack(side=TOP)
 
-    issueLabel = myGUI.LabelPackPlacement(configureFrame, "", myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, myGUI.FONT10 , BOTTOM, width= 200, height= 2)
+    issueLabel = myGUI.LabelPackPlacement(configureFrame, "", myGUI.LICHESSBGLIGHT, myGUI.FGWHITE, myGUI.FONT10, BOTTOM,
+                                          width=200, height=2)
 
-######################################################################################################################################################
+    ######################################################################################################################################################
 
     scoreboardFrame = myGUI.FrameOfPacksGridPlacement(root, (300, 700), (0, 2), myGUI.LICHESSBGDARKMAIN, 30)
-    myGUI.LabelPackPlacement(scoreboardFrame, 'Puzzle Top 10', myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP, width= 300, height = 3)
+    myGUI.LabelPackPlacement(scoreboardFrame, 'Puzzle Top 10', myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP,
+                             width=300, height=3)
 
-######################################################################################################################################################
+    ######################################################################################################################################################
     patronsFrame = myGUI.FrameOfPacksGridPlacement(root, (300, 700), (0, 3), myGUI.LICHESSBGDARKMAIN)
-    myGUI.LabelPackPlacement(patronsFrame, "Patrons", myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP, width= 300, height= 3)
+    myGUI.LabelPackPlacement(patronsFrame, "Patrons", myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP, width=300,
+                             height=3)
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
     root.protocol("WM_DELETE_WINDOW", onExit)
@@ -448,14 +510,15 @@ def startGui():
 
 
 event_loop_a = asyncio.new_event_loop()
+
+
 def run_loop(loop):
     asyncio.set_event_loop(loop)
     startTwitchBot()
     loop.run_forever()
 
-twitchthread = threading.Thread(target = lambda: run_loop(event_loop_a), daemon=True)
+
+twitchthread = threading.Thread(target=lambda: run_loop(event_loop_a), daemon=True)
 twitchthread.start()
 
-
-threading.Thread(target = startGui).start()
-
+threading.Thread(target=startGui).start()

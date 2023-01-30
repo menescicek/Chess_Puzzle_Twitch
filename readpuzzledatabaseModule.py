@@ -1,3 +1,4 @@
+import numpy
 import pandas as pd
 import random
 import chess
@@ -14,6 +15,12 @@ moves = None
 svgFile = 'pos.svg'
 WHITE = ""
 waitingTime = 1
+
+def convert(val):
+    if val == numpy.NaN:
+        return 0
+    return val
+
 def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabaseFunction, showPuzzleInfoFunction, onExceptionFunction):
     global index, board, moves, WHITE
 
@@ -21,22 +28,30 @@ def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabase
     startReadingFunction()
     n = 3000000
     rand = random.randint(1, n)
-
     try:
-        colnames = ['PuzzleId','FEN','Moves','Rating','RatingDeviation','Popularity','NbPlays','Themes','GameUrl','OpeningFamily']
-        df = pd.read_csv('DATABASE/lichess_db_puzzle.csv', skiprows= rand, nrows= 1, names= colnames)
-
-        print(df.columns.values)
-        df = df.loc[: , ['FEN', 'Moves', 'Rating', 'Popularity', 'Themes', 'GameUrl']]
-        fen = df.iloc[0][0]
-        movesString = df.iloc[0][1]
-        rating = df.iloc[0][2]
-        popularity = df.iloc[0][3]
-        themes = df.iloc[0][4]
-        gameurl = df.iloc[0][5]
+        df = pd.read_csv('DATABASE/lichess_db_puzzle.csv', skiprows= rand, nrows= 1, engine= 'c', header= None, dtype={
+                     "0": "str",
+                     "1": "str",
+                     "2": "str",
+                     "3": "int",
+                     "4": "int",
+                     "5": "int",
+                     "6": "int",
+                     "7": "str",
+                     "8": "str",
+                     "9": "int"
+                 }, converters= {"9": convert})
+        print(df)
+        # print(df.columns.values)
+        print(df.iloc[0])
+        fen = df.iloc[0][1]
+        movesString = df.iloc[0][2]
+        rating = df.iloc[0][3]
+        popularity = df.iloc[0][4]
+        themes = df.iloc[0][5]
+        gameurl = df.iloc[0][6]
 
         data = [str(rating), str(popularity), str(themes), str(gameurl)]
-
 
         print("FEN:", fen)
         print("Moves:", movesString)
@@ -44,7 +59,6 @@ def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabase
         print("Popularity:", popularity)
         print("Themes:", themes)
         print("Gameurl:", gameurl)
-
 
         regex = r"\w+"
         matches = re.finditer(regex, movesString)
@@ -72,7 +86,7 @@ def getPuzzles(startReadingFunction, stopReadingFunction, showPuzzleFromDatabase
         index = 0
         computerMove(index, showPuzzleFromDatabaseFunction)
 
-def firstPosition(func):
+def firstPosition(func, isLastMove = False):
     with open(svgFile, 'w') as f:
         if WHITE:
             f.write(chess.svg.board(board, orientation= chess.BLACK))
@@ -81,7 +95,7 @@ def firstPosition(func):
 
     puzzlePngFilePath = cm.convert2Png(svgFile)
     ans = ""
-    func(puzzlePngFilePath, ans)
+    func(puzzlePngFilePath, ans, isLastMove)
 
 def computerMove(index, func):
     moveToPush = moves[index]
@@ -111,25 +125,27 @@ def checkMoveValid(index):
     else:
         return True
 
-def playerMove(index, func):
+def playerMove(index, func, isLastMove = False):
     moveToPush = moves[index]
     print("Player Move: ", moveToPush)
 
     board.push_san(moveToPush)
 
-    firstPosition(func)
+    firstPosition(func, isLastMove)
 
 def onCorrectMoveFound(showPuzzleFromDatabaseFunction):
     global index, moves
     index += 1
     if checkMoveValid(index):
-        playerMove(index, showPuzzleFromDatabaseFunction)
+        isLastMove = not checkMoveValid(index + 1)
+        playerMove(index, showPuzzleFromDatabaseFunction, isLastMove)
     else:
-        print("Puzzle Solved!")
+        print("Puzzle Solved! After Computer")
+
         return
     index += 1
     if checkMoveValid(index):
         computerMove(index, showPuzzleFromDatabaseFunction)
     else:
-        print("Puzzle Solved!")
+        print("Puzzle Solved! After Player")
         return
