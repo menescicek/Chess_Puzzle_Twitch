@@ -56,13 +56,13 @@ class Bot(commands.Bot):
     #     fillAndDisplayPatronsFrame()
 
     async def event_join(self, channel, user):
-        print(user.name, "geldi.")
+        print(user.name, "joined..")
         if changeStatusOnline(user):
             sortAndDisplayScoreboard(scoreboard)
             fillAndDisplayPatronsFrame()
 
     async def event_part(self, user):
-        print(user.name, "ayrıldı")
+        print(user.name, "departed..")
         if changeStatusOffline(user):
             sortAndDisplayScoreboard(scoreboard)
             fillAndDisplayPatronsFrame()
@@ -80,10 +80,8 @@ class Bot(commands.Bot):
             await ctx.send(f'Doğru cevap zaten verildi. Bilgisayar oynayacak. Lütfen bekle !')
 
         elif ans != "" and ans != None and  ansByPlayer == ans:
-            await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
-            userState = await self.event_userstate(ctx.author)
-            print(userState)
             ans = ""
+            await ctx.send(f'{ctx.author.name} doğru cevabı verdi.')
             updateScoreboard(scoreboard, WIN, ctx)
             sortAndDisplayScoreboard(scoreboard)
             rpdm.onCorrectMoveFound(showPuzzleFromDatabase)
@@ -126,6 +124,49 @@ pb = None
 
 allPlayers = []
 patronsAllFrames = []
+dbPlayers = []
+
+
+def replace(file, pattern, subst):
+    # Read contents from file as a single string
+    file_handle = open(file, 'r')
+    file_string = file_handle.read()
+    file_handle.close()
+
+    print("Before:", file_string)
+    # Use RE package to allow for replacement (also allowing for (multiline) REGEX)
+    file_string = (re.sub(pattern, subst, file_string))
+    print("After:", file_string)
+
+    # Write contents to file.
+    # Using mode 'w' truncates the file.
+    file_handle = open(file, 'w')
+    file_handle.write(file_string)
+    file_handle.close()
+
+def readDatabase():
+    with open("ratingDatabase.txt", "r") as file1:
+        lines = file1.read()
+
+        regex = r"\w+\t"
+        matches = re.finditer(regex, lines, re.MULTILINE)
+
+        for matchNum, match in enumerate(matches, start=1):
+            player = match.group()
+            dbPlayers.append(player.strip())
+
+    print("Databasedeki oyuncular:", dbPlayers)
+
+
+def saveRatingsToFile():
+    for key, value in scoreboard.items():
+        if key in dbPlayers:
+            replace("ratingDatabase.txt", r"{}\t\[.*?\]".format(key), f"{key}\t{value}")
+        else:
+            print("key databasede mevcut değil o yüzden a+ çalıştırıldı.")
+            with open("ratingDatabase.txt", "r+") as file1:
+                file1.write(f"{key}\t{value}\n")
+
 
 def changeStatusOnline(user):
     for e in subsAndStatus:
@@ -178,7 +219,7 @@ def addNewPlayerToScoreboardFrame(value, bg, nameTxt, ratingTxt):
 
     newFrame = myGUI.FrameOfPacksPackPlacement(scoreboardFrame, (300, 40),  TOP, bg)
 
-    # if user vip
+    # if user sub
     if value[1] and nameTxt != "nimoniktr":
         isSubOnline = False
         for e in subsAndStatus:
@@ -332,7 +373,9 @@ def onClickGetPuzzles():
     t = threading.Thread(target=lambda : rpdm.getPuzzles(startReading, stopReading, showPuzzleFromDatabase, showPuzzleInfo, onExceptionOccured))
     t.start()
 
-def on_closing():
+def onExit():
+    readDatabase()
+    saveRatingsToFile()
     for fname in os.listdir(os.getcwd()):
         if fname.startswith("pos") or fname.startswith("outputpos"):
             os.remove(fname)
@@ -394,7 +437,7 @@ def startGui():
     myGUI.LabelPackPlacement(patronsFrame, "Patrons", myGUI.LICHESSBGLIGHT, myGUI.FGGRAY, myGUI.FONT15, TOP, width= 300, height= 3)
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
-    root.protocol("WM_DELETE_WINDOW", on_closing)
+    root.protocol("WM_DELETE_WINDOW", onExit)
 
     root.mainloop()
 
