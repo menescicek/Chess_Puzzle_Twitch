@@ -4,8 +4,8 @@ from PIL import ImageTk, Image
 
 LICHESSBGDARKMAIN = "#161512"
 
-LICHESSBGDARK = "#302E2C"
-LICHESSBGLIGHT = "#262421"
+LICHESSBGDARKLIST = "#302E2C"
+LICHESSBGLIGHTLIST = "#262421"
 LICHESSGOLD = "#BC7E1C"
 
 FGGRAY = "#BABABA"
@@ -13,6 +13,7 @@ FGWHITE = "#999999"
 
 FONT15 = ("Arial", 15)
 FONT10 = ("Arial", 10)
+LUCIDA13 = ('Lucida Console', 13)
 
 class RootWindowOfGrids(Tk):
     def __init__(self, title, geometry, bg):

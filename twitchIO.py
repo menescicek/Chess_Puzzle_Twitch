@@ -110,3 +110,11 @@ def changeStatusOffline(user):
             return True
     log.debugEnd(moduleName, log.getFuncName(), subsAndStatus)
     return False
+
+
+def isSubOnline(thisSub):
+    for e in subsAndStatus:
+        sub, stat = e
+        if sub == thisSub:
+            return stat
+    return None

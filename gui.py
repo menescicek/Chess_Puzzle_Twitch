@@ -23,83 +23,55 @@ issueLabel, puzzleImageLabel, ratingLabel, themeLabel, gameUrlLabel = None, None
 pb = None
 
 scoreboardItems = []
-patronsAllFrames = []
+patronItems = []
 mode = 2
 moduleName = __name__
 
 
 def refreshPatrons():
     log.debugStart(moduleName, log.getFuncName())
-    global patronsAllFrames
+    global patronItems
 
-    for f in patronsAllFrames:
+    for f in patronItems:
         f.destroy()
 
     for count, patron in enumerate(tm.subsAndStatus):
-        if count % 2 == 0:
-            frame = guiHelper.FrameOfPacksPackPlacement(patronsFrame, (300, 40), TOP, guiHelper.LICHESSBGLIGHT)
-            if patron[0] == "nimoniktr":
-                guiHelper.ImageOnFramePackPlacement(frame, "images/patronBoss.png", (20, 20), guiHelper.LICHESSBGLIGHT, LEFT)
-            else:
-                if patron[1]:
-                    guiHelper.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), guiHelper.LICHESSBGLIGHT,
-                                                        LEFT)
-                else:
-                    guiHelper.ImageOnFramePackPlacement(frame, "images/patron.png", (20, 20), guiHelper.LICHESSBGLIGHT, LEFT)
+        # assign bg wrt. count
+        bg = guiHelper.LICHESSBGLIGHTLIST if count % 2 == 0 else guiHelper.LICHESSBGDARKLIST
+        # patron name, patron status
+        name, status = patron
+        # create a new ItemFrame
+        frame = guiHelper.FrameOfPacksPackPlacement(patronsFrame, (300, 40), TOP, bg)
 
-            guiHelper.LabelPackPlacement(frame, patron[0], guiHelper.LICHESSBGLIGHT, guiHelper.FGWHITE, ('Lucida Console', 13),
-                                         LEFT)
-        else:
-            frame = guiHelper.FrameOfPacksPackPlacement(patronsFrame, (300, 40), TOP, guiHelper.LICHESSBGDARK)
-            if patron[0] == "nimoniktr":
-                guiHelper.ImageOnFramePackPlacement(frame, "images/patronBoss.png", (20, 20), guiHelper.LICHESSBGDARK, LEFT)
-            else:
-                if patron[1]:
-                    guiHelper.ImageOnFramePackPlacement(frame, "images/patronOnline.png", (20, 20), guiHelper.LICHESSBGDARK,
-                                                        LEFT)
-                else:
-                    guiHelper.ImageOnFramePackPlacement(frame, "images/patron.png", (20, 20), guiHelper.LICHESSBGDARK, LEFT)
+        img = "images/patronBoss.png" if name == "nimoniktr" else "images/patronOnline.png" if status else "images/patronOffline.png"
+        # place wing on item frame
+        guiHelper.ImageOnFramePackPlacement(frame, img, (20, 20), bg, LEFT)
+        # place name on item frame
+        guiHelper.LabelPackPlacement(frame, name, bg, guiHelper.FGWHITE, guiHelper.LUCIDA13, LEFT)
 
-            guiHelper.LabelPackPlacement(frame, patron[0], guiHelper.LICHESSBGDARK, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
-        patronsAllFrames.append(frame)
+        patronItems.append(frame)
     log.debugEnd(moduleName, log.getFuncName())
 
 
 def createNewScoreboardItem(key_value, even):
     log.debugStart(moduleName, log.getFuncName())
-    bg = "#262421" if even else "#302E2C"
+    bg = guiHelper.LICHESSBGLIGHTLIST if even else guiHelper.LICHESSBGDARKLIST
 
-    nameTxt = str(key_value[0])
-    ratingTxt = str(int(key_value[1][2].mu))
+    playerName = str(key_value[0])
+    isSub = key_value[1][1]
+    rtg = str(int(key_value[1][2].mu))
 
     newFrame = guiHelper.FrameOfPacksPackPlacement(scoreboardFrame, (300, 40), TOP, bg)
 
     # if user sub
-    if key_value[1] and nameTxt != "nimoniktr":
-        # isSubOnline = False
-        for e in tm.subsAndStatus:
-            if nameTxt == e[0]:
-                isSubOnline = e[1]
-        if isSubOnline:
-            guiHelper.ImageOnFramePackPlacement(newFrame, "images/patronOnline.png", (20, 20), bg, LEFT)
-            guiHelper.LabelPackPlacement(newFrame, nameTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
-            guiHelper.LabelPackPlacement(newFrame, ratingTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
-            print("Frame object created using patronOnline.png")
-        else:
-            guiHelper.ImageOnFramePackPlacement(newFrame, "images/patron.png", (20, 20), bg, LEFT)
-            guiHelper.LabelPackPlacement(newFrame, nameTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
-            guiHelper.LabelPackPlacement(newFrame, ratingTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
-            print("Frame object created using patron.png")
-    elif nameTxt == "nimoniktr":
-        guiHelper.ImageOnFramePackPlacement(newFrame, "images/patronBoss.png", (20, 20), bg, LEFT)
-        guiHelper.LabelPackPlacement(newFrame, nameTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
-        guiHelper.LabelPackPlacement(newFrame, ratingTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
-        print("Frame object created using patronBoss.png")
+    if isSub:
+        img = "images/patronBoss.png" if playerName == "nimoniktr" else "images/patronOnline.png" if tm.isSubOnline(playerName) else "images/patronOffline.png"
     else:
-        guiHelper.ImageOnFramePackPlacement(newFrame, "images/online.png", (20, 20), bg, LEFT)
-        guiHelper.LabelPackPlacement(newFrame, nameTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
-        guiHelper.LabelPackPlacement(newFrame, ratingTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
-        print("Frame object created using online.png")
+        img = "images/online.png"
+
+    guiHelper.ImageOnFramePackPlacement(newFrame, img, (20, 20), bg, LEFT)
+    guiHelper.LabelPackPlacement(newFrame, playerName, bg, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
+    guiHelper.LabelPackPlacement(newFrame, rtg, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
 
     log.debugEnd(moduleName, log.getFuncName())
 
@@ -238,10 +210,10 @@ def startGui():
 
     ##################################################################################################################################################
 
-    mainFrame = guiHelper.FrameOfGridsGridPlacement(root, (600, 700), (0, 1), guiHelper.LICHESSBGLIGHT)
-    guiHelper.DummyFrameGridPlacement(mainFrame, (600, 25), (0, 0), guiHelper.LICHESSBGLIGHT)
-    puzzleFrame = guiHelper.FrameOfPacksGridPlacement(mainFrame, (600, 575), (1, 0), guiHelper.LICHESSBGLIGHT)
-    vsInfoFrame = guiHelper.FrameOfGridsGridPlacement(mainFrame, (600, 100), (2, 0), guiHelper.LICHESSBGLIGHT)
+    mainFrame = guiHelper.FrameOfGridsGridPlacement(root, (600, 700), (0, 1), guiHelper.LICHESSBGLIGHTLIST)
+    guiHelper.DummyFrameGridPlacement(mainFrame, (600, 25), (0, 0), guiHelper.LICHESSBGLIGHTLIST)
+    puzzleFrame = guiHelper.FrameOfPacksGridPlacement(mainFrame, (600, 575), (1, 0), guiHelper.LICHESSBGLIGHTLIST)
+    vsInfoFrame = guiHelper.FrameOfGridsGridPlacement(mainFrame, (600, 100), (2, 0), guiHelper.LICHESSBGLIGHTLIST)
 
     ###################################################################################################################################################
 
@@ -261,7 +233,7 @@ def startGui():
     guiHelper.LabelPackPlacement(streamerWingFrame, "Nimoniktr", guiHelper.LICHESSBGDARKMAIN, guiHelper.FGWHITE, guiHelper.FONT15,
                                  BOTTOM)
 
-    puzzleInfoFrame = guiHelper.FrameOfPacksGridPlacement(leftFrame, (200, 80), (4, 0), guiHelper.LICHESSBGLIGHT, pady=20)
+    puzzleInfoFrame = guiHelper.FrameOfPacksGridPlacement(leftFrame, (200, 80), (4, 0), guiHelper.LICHESSBGLIGHTLIST, pady=20)
 
     def flt():
         global mode
@@ -271,11 +243,11 @@ def startGui():
 
     s = tkinter.ttk.Style()  # Creating style element
     s.configure('Wild.TRadiobutton',  # First argument is the name of style. Needs to end with: .TRadiobutton
-                background=guiHelper.LICHESSBGLIGHT,  # Setting background to our specified color above
+                background=guiHelper.LICHESSBGLIGHTLIST,  # Setting background to our specified color above
                 foreground=guiHelper.LICHESSGOLD)  # You can define colors like this also
     s2 = tkinter.ttk.Style()  # Creating style element
     s2.configure('Dark.TRadiobutton',  # First argument is the name of style. Needs to end with: .TRadiobutton
-                 background=guiHelper.LICHESSBGDARK,  # Setting background to our specified color above
+                 background=guiHelper.LICHESSBGDARKLIST,  # Setting background to our specified color above
                  foreground=guiHelper.LICHESSGOLD)  # You can define colors like this also
 
     R1 = tkinter.ttk.Radiobutton(leftFrame, text="Easy", variable=var, value=1, command=flt, style='Wild.TRadiobutton',
@@ -290,7 +262,7 @@ def startGui():
 
     guiHelper.DummyFrameGridPlacement(leftFrame, (200, 50), (8, 0), guiHelper.LICHESSBGDARKMAIN)
 
-    configureFrame = guiHelper.FrameOfPacksGridPlacement(leftFrame, (200, 100), (9, 0), guiHelper.LICHESSBGLIGHT)
+    configureFrame = guiHelper.FrameOfPacksGridPlacement(leftFrame, (200, 100), (9, 0), guiHelper.LICHESSBGLIGHTLIST)
     getPuzzlesButton = Button(configureFrame, text="SEARCH", command=onClickGetPuzzles,
                               width=30, height=3, bg="#373531", fg="#999999", borderwidth=0, highlightthickness=0,
                               activebackground="#de5100", disabledforeground="black")
@@ -298,18 +270,18 @@ def startGui():
     getPuzzlesButton.bind("<Leave>", lambda event: on_leave(getPuzzlesButton))
     getPuzzlesButton.pack(side=TOP)
 
-    issueLabel = guiHelper.LabelPackPlacement(configureFrame, "", guiHelper.LICHESSBGLIGHT, guiHelper.FGWHITE, guiHelper.FONT10, BOTTOM,
+    issueLabel = guiHelper.LabelPackPlacement(configureFrame, "", guiHelper.LICHESSBGLIGHTLIST, guiHelper.FGWHITE, guiHelper.FONT10, BOTTOM,
                                               width=200, height=2)
 
     ######################################################################################################################################################
 
     scoreboardFrame = guiHelper.FrameOfPacksGridPlacement(root, (300, 700), (0, 2), guiHelper.LICHESSBGDARKMAIN, 30)
-    guiHelper.LabelPackPlacement(scoreboardFrame, 'Puzzle Top 10', guiHelper.LICHESSBGLIGHT, guiHelper.FGGRAY, guiHelper.FONT15, TOP,
+    guiHelper.LabelPackPlacement(scoreboardFrame, 'Puzzle Top 10', guiHelper.LICHESSBGLIGHTLIST, guiHelper.FGGRAY, guiHelper.FONT15, TOP,
                                  width=300, height=3)
 
     ######################################################################################################################################################
     patronsFrame = guiHelper.FrameOfPacksGridPlacement(root, (300, 700), (0, 3), guiHelper.LICHESSBGDARKMAIN)
-    guiHelper.LabelPackPlacement(patronsFrame, "Patrons", guiHelper.LICHESSBGLIGHT, guiHelper.FGGRAY, guiHelper.FONT15, TOP, width=300,
+    guiHelper.LabelPackPlacement(patronsFrame, "Patrons", guiHelper.LICHESSBGLIGHTLIST, guiHelper.FGGRAY, guiHelper.FONT15, TOP, width=300,
                                  height=3)
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
