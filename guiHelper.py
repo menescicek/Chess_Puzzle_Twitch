@@ -6,6 +6,7 @@ LICHESSBGDARKMAIN = "#161512"
 
 LICHESSBGDARK = "#302E2C"
 LICHESSBGLIGHT = "#262421"
+LICHESSGOLD = "#BC7E1C"
 
 FGGRAY = "#BABABA"
 FGWHITE = "#999999"
@@ -24,8 +25,8 @@ class RootWindowOfGrids(Tk):
 
 
 class FrameOfGridsPackPlacement(Frame):
-    def __init__(self, parent, widthXheight, side, bg):
-        w, h = widthXheight
+    def __init__(self, parent, width_height, side, bg):
+        w, h = width_height
         Frame.__init__(self, parent, width=w, height=h, bg=bg)
 
         self.grid_propagate(False)
@@ -34,25 +35,25 @@ class FrameOfGridsPackPlacement(Frame):
 
 
 class FrameOfPacksGridPlacement(Frame):
-    def __init__(self, parent, widthXheight, rowXcol, bg, padX=None, padY=None):
-        w, h = widthXheight
+    def __init__(self, parent, width_height, row_col, bg, padx=None, pady=None):
+        w, h = width_height
         Frame.__init__(self, parent, width=w, height=h, bg=bg)
 
         self.pack_propagate(False)
 
-        row, col = rowXcol
-        if padX != None and padY == None:
-            self.grid(row=row, column=col, padx=padX)
-        elif padX == None and padY != None:
-            self.grid(row=row, column=col, pady=padY)
-        elif padX != None and padY != None:
-            self.grid(row=row, column=col, padx=padX, pady=padY)
+        row, col = row_col
+        if padx != None and pady == None:
+            self.grid(row=row, column=col, padx=padx)
+        elif padx == None and pady != None:
+            self.grid(row=row, column=col, pady=pady)
+        elif padx != None and pady != None:
+            self.grid(row=row, column=col, padx=padx, pady=pady)
         else:
             self.grid(row=row, column=col)
 
 class FrameOfPacksPackPlacement(Frame):
-    def __init__(self, parent, widthXheight, side, bg):
-        w, h = widthXheight
+    def __init__(self, parent, width_height, side, bg):
+        w, h = width_height
         Frame.__init__(self, parent, width=w, height=h, bg=bg)
 
         self.pack_propagate(False)
