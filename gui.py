@@ -6,7 +6,7 @@ from PIL import ImageTk, Image, ImageFile
 import os
 import threading
 
-import guiHelper
+from helpers import guiHelper
 
 import common
 import twitchModule as tm
@@ -18,34 +18,11 @@ getPuzzlesButton = None
 leftFrame, scoreboardFrame, patronsFrame, puzzleFrame, vsInfoFrame, configureFrame, puzzleInfoFrame = None, None, None, None, None, None, None
 issueLabel, puzzleImageLabel, ratingLabel, themeLabel, gameUrlLabel = None, None, None, None, None
 
+pb = None
 
 scoreboardItems = []
 patronsAllFrames = []
 mode = 2
-
-
-def changeStatusOnline(user):
-    print("changeStatusOnline start:", tm.subsAndStatus)
-    for e in tm.subsAndStatus:
-        if e[0] == user.name and e[1] == False:
-            e[1] = True
-            print("Patron status is updated: ", user.name, " is online")
-            print("changeStatusOnline end:", tm.subsAndStatus)
-            return True
-    print("changeStatusOnline end:", tm.subsAndStatus)
-    return False
-
-
-def changeStatusOffline(user):
-    print("changeStatusOffline start:", tm.subsAndStatus)
-    for e in tm.subsAndStatus:
-        if e[0] == user.name and e[1] == True:
-            e[1] = False
-            print("Patron status is updated: ", user.name, " is offline")
-            print("changeStatusOffline end:", tm.subsAndStatus)
-            return True
-    print("changeStatusOffline end:", tm.subsAndStatus)
-    return False
 
 
 def fillAndDisplayPatronsFrame():
@@ -130,18 +107,18 @@ def destroyItems():
 
 
 def on_enter(btn):
-    if btn != None and btn['state'] == "normal":
+    if btn is not None and btn['state'] == "normal":
         btn['fg'] = "white"
 
 
 def on_leave(btn):
-    if btn != None and btn['state'] == "normal":
+    if btn is not None and btn['state'] == "normal":
         btn['fg'] = "#999999"
 
 
 def placePuzzleImage(imgFile, isLastMove=False):
     global puzzleImageLabel
-    if puzzleImageLabel != None:
+    if puzzleImageLabel is not None:
         puzzleImageLabel.destroy()
     if not isLastMove:
         img = Image.open(imgFile)
@@ -180,11 +157,6 @@ def showPuzzleInfo(data):
     backend.puzzleRating = data[0]
     ratingLabel = Label(puzzleInfoFrame, text=f"\n{backend.puzzleRating}", bg="#262421", font=("Roboto", 18), fg="#BABAAB")
     ratingLabel.pack()
-    #
-    # themeLabel = Label(vsInfoFrame, text=f"{data[2]}", bg="#262421", font=("Arial", 13), fg="#BABAAB")
-    # themeLabel.pack()
-    # gameurlLabel = Label(vsInfoFrame, text=f"{data[3]}", bg="#262421", font=("Arial", 13), fg="#BABAAB")
-    # gameurlLabel.pack()
 
 
 def deletePuzzleInfo():
@@ -195,9 +167,6 @@ def deletePuzzleInfo():
     if gameUrlLabel is not None:
         gameUrlLabel.destroy()
     issueLabel.config(text="")
-
-
-pb = None
 
 
 def showProgressbar():
@@ -236,9 +205,6 @@ def onExceptionOccured():
 
 def onClickGetPuzzles():
     backend.puzzleAnswer = None
-    # t = threading.Thread(
-    #     target=lambda: rpdm.getPuzzles(startReading, stopReading, showPuzzleFromDatabase, showPuzzleInfo,
-    #                                    onExceptionOccured, mode))
 
     t = threading.Thread(
         target=lambda: common.getPuzzles(mode))
@@ -253,7 +219,6 @@ def onExit():
             os.remove(fname)
     root.destroy()
     print("onExit end:")
-
 
 
 def startGui():

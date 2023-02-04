@@ -1,7 +1,7 @@
 import common
 import backendLogic as backend
 from twitchio.ext import commands
-from glicko import WIN, LOSS
+from helpers.glicko import WIN, LOSS
 
 bot = None
 subsAndStatus = []
@@ -17,10 +17,10 @@ class Bot(commands.Bot):
     async def event_ready(self):
         global subsAndStatus
 
-        nimoniktr = await self.fetch_users(ids=[self.user_id])
-        subs = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
         backend.dbPlayers = backend.getPlayersFromRatingsDatabaseFile()
 
+        nimoniktr = await self.fetch_users(ids=[self.user_id])
+        subs = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
         for sub in subs:
             subsAndStatus.append([sub.user.name, False])
         subsAndStatus.append(["yarabbi", False])
@@ -34,13 +34,13 @@ class Bot(commands.Bot):
 
     async def event_join(self, channel, user):
         print(user.name, "joined..")
-        if common.changeStatusOnline(user):
+        if changeStatusOnline(user):
             backend.refreshScoreboardItems()
             common.fillAndDisplayPatronsFrame()
 
     async def event_part(self, user):
         print(user.name, "departed..")
-        if common.changeStatusOffline(user):
+        if changeStatusOffline(user):
             backend.refreshScoreboardItems()
             common.fillAndDisplayPatronsFrame()
 
@@ -75,3 +75,27 @@ def startTwitchBot():
     global bot
     bot = Bot()
     bot.run()
+
+
+def changeStatusOnline(user):
+    print("changeStatusOnline start:", subsAndStatus)
+    for e in subsAndStatus:
+        if e[0] == user.name and e[1] == False:
+            e[1] = True
+            print("Patron status is updated: ", user.name, " is online")
+            print("changeStatusOnline end:", subsAndStatus)
+            return True
+    print("changeStatusOnline end:", subsAndStatus)
+    return False
+
+
+def changeStatusOffline(user):
+    print("changeStatusOffline start:", subsAndStatus)
+    for e in subsAndStatus:
+        if e[0] == user.name and e[1] == True:
+            e[1] = False
+            print("Patron status is updated: ", user.name, " is offline")
+            print("changeStatusOffline end:", subsAndStatus)
+            return True
+    print("changeStatusOffline end:", subsAndStatus)
+    return False

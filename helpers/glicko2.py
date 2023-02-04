@@ -10,7 +10,7 @@
 """
 import math
 
-from glicko import Glicko, WIN, DRAW, LOSS, MU, SIGMA, Q
+from helpers.glicko import Glicko, WIN, DRAW, LOSS, MU, SIGMA, Q
 
 
 VOLATILITY = 0.06

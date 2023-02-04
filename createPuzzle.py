@@ -4,9 +4,8 @@ import random
 import chess
 import chess.svg
 import re
-import cairoModule as cm
 import time
-import helperModule
+from helpers import helperModule, cairoModule as cm
 
 import common
 import backendLogic as backend
@@ -34,7 +33,7 @@ def getPuzzles(mode):
         if mode == 1:
             n = 962408
             rand = random.randint(1, n)
-            df = pd.read_csv('DATABASE/15002000.csv', skiprows= rand, nrows= 1, engine='c', header= None, dtype={
+            df = pd.read_csv('puzzleDatabase/15002000.csv', skiprows= rand, nrows= 1, engine='c', header= None, dtype={
                          "0": "str",
                          "1": "str",
                          "2": "str",
@@ -50,7 +49,7 @@ def getPuzzles(mode):
         elif mode == 2:
             n = 522107
             rand = random.randint(1, n)
-            df = pd.read_csv('DATABASE/20002500.csv', skiprows=rand, nrows=1, engine='c', header=None, dtype={
+            df = pd.read_csv('puzzleDatabase/20002500.csv', skiprows=rand, nrows=1, engine='c', header=None, dtype={
                 "0": "str",
                 "1": "str",
                 "2": "str",
@@ -67,7 +66,7 @@ def getPuzzles(mode):
         elif mode == 3:
             n = 107888
             rand = random.randint(1, n)
-            df = pd.read_csv('DATABASE/25003000.csv', skiprows=rand, nrows=1, engine='c', header=None, dtype={
+            df = pd.read_csv('puzzleDatabase/25003000.csv', skiprows=rand, nrows=1, engine='c', header=None, dtype={
                 "0": "str",
                 "1": "str",
                 "2": "str",
@@ -152,7 +151,7 @@ def computerMove(index):
 
     with open(svgFile, 'w') as f:
         if WHITE:
-            f.write(chess.svg.board(board,orientation=chess.BLACK, arrows=[
+            f.write(chess.svg.board(board, orientation=chess.BLACK, arrows=[
                 chess.svg.Arrow(helperModule.convertSquareToInt(firstSqr), helperModule.convertSquareToInt(secondSqr))]))
         else:
             f.write(chess.svg.board(board, orientation=chess.WHITE, arrows=[

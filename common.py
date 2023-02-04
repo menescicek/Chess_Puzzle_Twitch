@@ -34,14 +34,6 @@ def fillAndDisplayPatronsFrame():
     pass
 
 
-def changeStatusOnline():
-    pass
-
-
-def changeStatusOffline():
-    pass
-
-
 def placePuzzleImage():
     pass
 
@@ -56,6 +48,6 @@ def createNewScoreboardItem():
 
 scoreboardItems = []
 
-from readPuzzle import getPuzzles, onCorrectMoveFound
+from createPuzzle import getPuzzles, onCorrectMoveFound
 from gui import startReading, stopReading, showPuzzleInfo, onExceptionOccured, \
-    startGui, changeStatusOnline, fillAndDisplayPatronsFrame, placePuzzleImage, destroyItems, createNewScoreboardItem, scoreboardItems, changeStatusOffline
+    startGui, fillAndDisplayPatronsFrame, placePuzzleImage, destroyItems, createNewScoreboardItem, scoreboardItems
