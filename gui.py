@@ -9,8 +9,10 @@ import threading
 from helpers import guiHelper
 
 import common
-import twitchModule as tm
+import twitchIO as tm
 import backendLogic as backend
+import playerDB
+import log
 
 
 root = None
@@ -23,9 +25,11 @@ pb = None
 scoreboardItems = []
 patronsAllFrames = []
 mode = 2
+moduleName = __name__
 
 
-def fillAndDisplayPatronsFrame():
+def refreshPatrons():
+    log.debugStart(moduleName, log.getFuncName())
     global patronsAllFrames
 
     for f in patronsAllFrames:
@@ -58,10 +62,11 @@ def fillAndDisplayPatronsFrame():
 
             guiHelper.LabelPackPlacement(frame, patron[0], guiHelper.LICHESSBGDARK, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
         patronsAllFrames.append(frame)
+    log.debugEnd(moduleName, log.getFuncName())
 
 
 def createNewScoreboardItem(key_value, even):
-    print("createNewScoreboardItem start:", key_value)
+    log.debugStart(moduleName, log.getFuncName())
     bg = "#262421" if even else "#302E2C"
 
     nameTxt = str(key_value[0])
@@ -96,7 +101,7 @@ def createNewScoreboardItem(key_value, even):
         guiHelper.LabelPackPlacement(newFrame, ratingTxt, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
         print("Frame object created using online.png")
 
-    print("createNewScoreboardItem end:", key_value)
+    log.debugEnd(moduleName, log.getFuncName())
 
     return newFrame
 
@@ -212,13 +217,14 @@ def onClickGetPuzzles():
 
 
 def onExit():
-    print("onExit start:")
-    backend.saveRatingsToDatabaseFile()
+    log.debugStart(moduleName, log.getFuncName())
+    # save database before exit.
+    playerDB.save()
     for fname in os.listdir(os.getcwd()):
         if fname.startswith("pos") or fname.startswith("outputpos"):
             os.remove(fname)
     root.destroy()
-    print("onExit end:")
+    log.debugEnd(moduleName, log.getFuncName())
 
 
 def startGui():

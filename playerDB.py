@@ -10,7 +10,7 @@ dbPlayers = []
 
 def getPlayers():
     db = []
-    with open(dbFile, "w+") as file1:
+    with open(dbFile, "r+") as file1:
         lines = file1.read()
 
         regex = r"^\w+\t"

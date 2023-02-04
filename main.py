@@ -1,7 +1,7 @@
 import asyncio
 import common
 import threading
-import twitchModule
+import twitchIO
 
 
 event_loop_a = asyncio.new_event_loop()
@@ -9,7 +9,7 @@ event_loop_a = asyncio.new_event_loop()
 
 def run_loop(loop):
     asyncio.set_event_loop(loop)
-    twitchModule.startTwitchBot()
+    twitchIO.startTwitchBot()
     loop.run_forever()
 
 

@@ -1,11 +1,14 @@
 import common
 import backendLogic as backend
+import playerDB
 from twitchio.ext import commands
 from helpers.glicko import WIN, LOSS
+import log
 
 bot = None
 subsAndStatus = []
 
+moduleName = __name__
 
 class Bot(commands.Bot):
     def __init__(self):
@@ -15,9 +18,10 @@ class Bot(commands.Bot):
         super().__init__(token='gy0pwp2pf642rhmfulgjnekx3zzh9x', prefix=".", initial_channels=['nimoniktr'])
 
     async def event_ready(self):
+        log.debugStart(moduleName, log.getFuncName())
         global subsAndStatus
 
-        backend.dbPlayers = backend.getPlayersFromRatingsDatabaseFile()
+        playerDB.dbPlayers = playerDB.getPlayers()
 
         nimoniktr = await self.fetch_users(ids=[self.user_id])
         subs = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
@@ -25,28 +29,34 @@ class Bot(commands.Bot):
             subsAndStatus.append([sub.user.name, False])
         subsAndStatus.append(["yarabbi", False])
 
-        common.fillAndDisplayPatronsFrame()
+        common.refreshPatrons()
 
         # Notify us when everything is ready!
         # We are logged in and ready to chat and use commands...
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
 
+        log.debugEnd(moduleName, log.getFuncName())
+
     async def event_join(self, channel, user):
+        log.debugStart(moduleName, log.getFuncName())
         print(user.name, "joined..")
         if changeStatusOnline(user):
             backend.refreshScoreboardItems()
-            common.fillAndDisplayPatronsFrame()
+            common.refreshPatrons()
+        log.debugEnd(moduleName, log.getFuncName())
 
     async def event_part(self, user):
+        log.debugStart(moduleName, log.getFuncName())
         print(user.name, "departed..")
         if changeStatusOffline(user):
             backend.refreshScoreboardItems()
-            common.fillAndDisplayPatronsFrame()
+            common.refreshPatrons()
+        log.debugEnd(moduleName, log.getFuncName())
 
     @commands.command(name=".")
     async def cevap(self, ctx: commands.Context):
-
+        log.debugStart(moduleName, log.getFuncName())
         ansByPlayer = ctx.message.content[3:]
 
         if backend.puzzleAnswer is None:
@@ -69,6 +79,7 @@ class Bot(commands.Bot):
 
             backend.updateScoreboardDict(LOSS, ctx)
             backend.refreshScoreboardItems()
+        log.debugEnd(moduleName, log.getFuncName())
 
 
 def startTwitchBot():
@@ -78,24 +89,24 @@ def startTwitchBot():
 
 
 def changeStatusOnline(user):
-    print("changeStatusOnline start:", subsAndStatus)
+    log.debugStart(moduleName, log.getFuncName(), subsAndStatus)
     for e in subsAndStatus:
         if e[0] == user.name and e[1] == False:
             e[1] = True
             print("Patron status is updated: ", user.name, " is online")
-            print("changeStatusOnline end:", subsAndStatus)
+            log.debugEnd(moduleName, log.getFuncName(), subsAndStatus)
             return True
-    print("changeStatusOnline end:", subsAndStatus)
+    log.debugEnd(moduleName, log.getFuncName(), subsAndStatus)
     return False
 
 
 def changeStatusOffline(user):
-    print("changeStatusOffline start:", subsAndStatus)
+    log.debugStart(moduleName, log.getFuncName(), subsAndStatus)
     for e in subsAndStatus:
         if e[0] == user.name and e[1] == True:
             e[1] = False
             print("Patron status is updated: ", user.name, " is offline")
-            print("changeStatusOffline end:", subsAndStatus)
+            log.debugEnd(moduleName, log.getFuncName(), subsAndStatus)
             return True
-    print("changeStatusOffline end:", subsAndStatus)
+    log.debugEnd(moduleName, log.getFuncName(), subsAndStatus)
     return False

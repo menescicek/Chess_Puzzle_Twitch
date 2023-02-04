@@ -50,4 +50,4 @@ scoreboardItems = []
 
 from createPuzzle import getPuzzles, onCorrectMoveFound
 from gui import startReading, stopReading, showPuzzleInfo, onExceptionOccured, \
-    startGui, fillAndDisplayPatronsFrame, placePuzzleImage, destroyItems, createNewScoreboardItem, scoreboardItems
+    startGui, refreshPatrons, placePuzzleImage, destroyItems, createNewScoreboardItem, scoreboardItems
