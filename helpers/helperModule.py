@@ -1,5 +1,6 @@
 import re
 import os, sys
+import threading
 
 def resource_path(relative_path):
     try:
@@ -32,3 +33,6 @@ def replace(file, pattern, subst):
     file_handle.write(file_string)
     file_handle.close()
 
+def print_all_active_threads():
+    for thread in threading.enumerate():
+        print(thread.name)

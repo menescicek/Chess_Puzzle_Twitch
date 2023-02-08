@@ -1,19 +1,24 @@
-import asyncio
 import common
 import threading
-import twitchIO
+import helpers.helperModule as hm
+
+from waiting import wait
+
+common.login()
+
+hm.print_all_active_threads()
 
 
-event_loop_a = asyncio.new_event_loop()
+def is_something_ready(something):
+    if something:
+        return True
+    return False
 
 
-def run_loop(loop):
-    asyncio.set_event_loop(loop)
-    twitchIO.startTwitchBot()
-    loop.run_forever()
-
-
-twitchThread = threading.Thread(target=lambda: run_loop(event_loop_a), daemon=True)
-twitchThread.start()
+wait(lambda: is_something_ready(common.readyOpenMainWindow), timeout_seconds=120, waiting_for="something to be ready")
+# this code will only execute after "something" is ready
+print("bura çalıştı")
 
 common.startGui()
+
+

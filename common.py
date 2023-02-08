@@ -46,8 +46,17 @@ def createNewScoreboardItem():
     pass
 
 
+def login():
+    pass
+
+
+
 scoreboardItems = []
+readyDestroyLoginWindow = False
+readyOpenMainWindow = False
+autherror = False
+
 
 from createPuzzle import getPuzzles, onCorrectMoveFound
 from gui import startReading, stopReading, showPuzzleInfo, onExceptionOccured, \
-    startGui, refreshPatrons, placePuzzleImage, destroyItems, createNewScoreboardItem, scoreboardItems
+    startGui, refreshPatrons, placePuzzleImage, destroyItems, createNewScoreboardItem, scoreboardItems, login

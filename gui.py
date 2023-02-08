@@ -1,3 +1,4 @@
+import sys
 import tkinter.ttk
 from tkinter import *
 
@@ -70,8 +71,8 @@ def createNewScoreboardItem(key_value, even):
         img = "images/online.png"
 
     guiHelper.ImageOnFramePackPlacement(newFrame, img, (20, 20), bg, LEFT)
-    guiHelper.LabelPackPlacement(newFrame, playerName, bg, guiHelper.FGWHITE, ('Lucida Console', 13), LEFT)
-    guiHelper.LabelPackPlacement(newFrame, rtg, bg, guiHelper.FGWHITE, ('Lucida Console', 13), RIGHT)
+    guiHelper.LabelPackPlacement(newFrame, playerName, bg, guiHelper.FGWHITE, guiHelper.LUCIDA13, LEFT)
+    guiHelper.LabelPackPlacement(newFrame, rtg, bg, guiHelper.FGWHITE, guiHelper.LUCIDA13, RIGHT)
 
     log.debugEnd(moduleName, log.getFuncName())
 
@@ -199,11 +200,70 @@ def onExit():
     log.debugEnd(moduleName, log.getFuncName())
 
 
+def login():
+    loginRoot = None
+    loginErrorLabel = None
+
+    def destroyLoginWindow():
+        if common.readyDestroyLoginWindow and loginRoot is not None:
+            loginRoot.destroy()
+        else:
+            loginRoot.after(1000, destroyLoginWindow)
+
+    def auth_error_f():
+        nonlocal loginErrorLabel
+        loginErrorLabel = Label(loginRoot, text="Wrong 'username' or 'token'", fg="#B5B0B0", bg=guiHelper.LICHESSBGLIGHTLIST,
+                           font=guiHelper.FONT12BOLD).place(relx=0.5, rely=0.65, anchor=CENTER)
+
+    def validateLogin():
+        print("loginErrorLabel:", loginErrorLabel)
+        if loginErrorLabel is not None:
+            print("login warning deleted...")
+            loginErrorLabel.destroy()
+        print("token entered :", token.get())
+
+        tm.startTwitchIOThread(token.get(), auth_error_f)
+
+    def onLoginClose():
+        sys.exit()
+    loginRoot = guiHelper.RootWindowOfGrids("Authentication", "420x400", guiHelper.LICHESSBGLIGHTLIST)
+
+    # get screen width and height
+    screen_width = loginRoot.winfo_screenwidth()
+    screen_height = loginRoot.winfo_screenheight()
+
+    # calculate position x and y coordinates
+    x = (screen_width / 2) - (420 / 2)
+    y = (screen_height / 2) - (400 / 2)
+    loginRoot.geometry('%dx%d+%d+%d' % (420, 400, x, y))
+
+
+    titleLabel = Label(loginRoot, text="Login", fg = "#B5B0B0" , bg = guiHelper.LICHESSBGLIGHTLIST, font = guiHelper.FONT20).place(relx = 0.22 ,rely = 0.1, anchor = CENTER)
+
+
+    # usernameLabel = Label(loginRoot, text="User Name", fg = "#B5B0B0" , bg = guiHelper.LICHESSBGLIGHTLIST, font = guiHelper.FONT12BOLD).place(relx = 0.25 ,rely = 0.23, anchor = CENTER)
+    # username = StringVar()
+    # usernameEntry = tkinter.Entry(loginRoot, textvariable=username, justify = "left", bg= "#2A2E1F", fg = "#B5BAAB", font = guiHelper.FONT12, insertbackground = "#B5B0B0").place(relx = 0.5, rely = 0.3, anchor = CENTER, width = 300, height = 35)
+
+    tokenLabel = Label(loginRoot, text="Token", fg = "#B5B0B0" , bg = guiHelper.LICHESSBGLIGHTLIST, font = guiHelper.FONT12BOLD).place(relx = 0.2 ,rely = 0.43, anchor = CENTER)
+    token = StringVar()
+    tokenEntry = tkinter.Entry(loginRoot, textvariable=token, show='*', justify = "left", bg= "#2A2E1F", fg = "#B5BAAB", font = guiHelper.FONT12, insertbackground = "#B5B0B0").place(relx = 0.5, rely = 0.5, anchor = CENTER, width = 300, height = 35)
+
+    # login button
+    loginButton = Button(loginRoot, text="Login", command=validateLogin, bg = "#3692E7", fg = "white", font = guiHelper.FONT12).place(relx = 0.5, rely = 0.8, anchor = CENTER, width = 300, height = 35)
+
+    loginRoot.after(0, destroyLoginWindow)
+    loginRoot.protocol("WM_DELETE_WINDOW", onLoginClose)
+    loginRoot.mainloop()
+
+
 def startGui():
     global root, nextBtn, revealBtn, puzzleFrame, \
         vsInfoFrame, issueLabel, leftFrame, \
         generateButton, configureFrame, scoreboardFrame, puzzleInfoFrame, getPuzzlesButton, patronsFrame
 
+
+    print("lşskdkafkasd")
     #################################################################################################################################################
 
     root = guiHelper.RootWindowOfGrids("Lichess-Twitch Puzzle", "1550x800", guiHelper.LICHESSBGDARKMAIN)
@@ -287,6 +347,7 @@ def startGui():
     ImageFile.LOAD_TRUNCATED_IMAGES = True
     root.protocol("WM_DELETE_WINDOW", onExit)
 
+    refreshPatrons()
     root.mainloop()
 
 

@@ -10,15 +10,18 @@ LICHESSGOLD = "#BC7E1C"
 
 FGGRAY = "#BABABA"
 FGWHITE = "#999999"
-
+FONT12 = ("Arial", 12)
+FONT12BOLD = ("Arial", 12, "bold")
 FONT15 = ("Arial", 15)
+FONT20 = ("Arial", 20)
+
 FONT10 = ("Arial", 10)
 LUCIDA13 = ('Lucida Console', 13)
 
 class RootWindowOfGrids(Tk):
     def __init__(self, title, geometry, bg):
         Tk.__init__(self)
-        self.title = title
+        self.title(title)
         self.geometry(geometry)
         self.config(bg=bg)
         self.resizable(False, False)

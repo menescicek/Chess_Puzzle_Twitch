@@ -1,35 +1,42 @@
 import common
 import backendLogic as backend
 import playerDB
+import asyncio
+import threading
+import twitchio
 from twitchio.ext import commands
 from helpers.glicko import WIN, LOSS
 import log
 
-bot = None
+twitchThread, bot = None, None
 subsAndStatus = []
 
 moduleName = __name__
 
+
 class Bot(commands.Bot):
-    def __init__(self):
+    def __init__(self, token):
+        self.token = token
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
         # prefix can be a callable, which returns a list of strings or a string...
         # initial_channels can also be a callable which returns a list of strings...
-        super().__init__(token='gy0pwp2pf642rhmfulgjnekx3zzh9x', prefix=".", initial_channels=['nimoniktr'])
+        super().__init__(token=token, prefix=".", initial_channels=[...])
 
     async def event_ready(self):
         log.debugStart(moduleName, log.getFuncName())
-        global subsAndStatus
 
+        global subsAndStatus
+        print(threading.current_thread())
         playerDB.dbPlayers = playerDB.getPlayers()
 
         nimoniktr = await self.fetch_users(ids=[self.user_id])
-        subs = await nimoniktr[0].fetch_subscriptions(token='gy0pwp2pf642rhmfulgjnekx3zzh9x')
+        subs = await nimoniktr[0].fetch_subscriptions(token=self.token)
         for sub in subs:
             subsAndStatus.append([sub.user.name, False])
         subsAndStatus.append(["yarabbi", False])
 
-        common.refreshPatrons()
+        common.readyDestroyLoginWindow = True
+        common.readyOpenMainWindow = True
 
         # Notify us when everything is ready!
         # We are logged in and ready to chat and use commands...
@@ -82,12 +89,6 @@ class Bot(commands.Bot):
         log.debugEnd(moduleName, log.getFuncName())
 
 
-def startTwitchBot():
-    global bot
-    bot = Bot()
-    bot.run()
-
-
 def changeStatusOnline(user):
     log.debugStart(moduleName, log.getFuncName(), subsAndStatus)
     for e in subsAndStatus:
@@ -118,3 +119,38 @@ def isSubOnline(thisSub):
         if sub == thisSub:
             return stat
     return None
+
+
+def startTwitchBot(token, auth_error_f):
+    global bot
+
+    try:
+        bot = Bot(token)
+    except Exception as e:
+        print("Bot can not be created.. ", e)
+    try:
+        bot.run()
+    except twitchio.errors.AuthenticationError as e:
+        print(e)
+        auth_error_f()
+    # except Exception as e:
+    #     print("NAME EXCEPTION: ", e)
+
+
+def startTwitchIOThread(token, errorFunc):
+    global twitchThread
+    policy = asyncio.get_event_loop_policy()
+    policy._loop_factory = asyncio.SelectorEventLoop
+    event_loop_a = asyncio.new_event_loop()
+
+    def run_loop(loop):
+
+        asyncio.set_event_loop(loop)
+        startTwitchBot(token, errorFunc)
+        try:
+            loop.run_forever()
+        except RuntimeError as e:
+            print(e)
+
+    twitchThread = threading.Thread(target=lambda: run_loop(event_loop_a), daemon= True)
+    twitchThread.start()
