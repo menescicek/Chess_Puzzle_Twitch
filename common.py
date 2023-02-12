@@ -50,7 +50,7 @@ def login():
     pass
 
 
-
+streamerName = ""
 scoreboardItems = []
 readyDestroyLoginWindow = False
 readyOpenMainWindow = False

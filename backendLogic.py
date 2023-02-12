@@ -24,9 +24,6 @@ def updateScoreboardDict(result, ctx):
 
     answerCount, isSub, playerRating = userInfo
 
-    if ctx.author.name == "yarabbi":
-        isSub = True
-
     # calculate new rating..
     env = getGlickoEnv()
     newRating = env.rate(playerRating, [(result, env.create_rating(float(puzzleRating), 30))])

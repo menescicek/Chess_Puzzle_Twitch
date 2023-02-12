@@ -15,26 +15,32 @@ moduleName = __name__
 
 
 class Bot(commands.Bot):
-    def __init__(self, token):
+    def __init__(self, username, token, auth_error_f):
+        self.username = username
         self.token = token
+        self.auth_error_f = auth_error_f
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
         # prefix can be a callable, which returns a list of strings or a string...
         # initial_channels can also be a callable which returns a list of strings...
-        super().__init__(token=token, prefix=".", initial_channels=[...])
+        super().__init__(token=token, prefix=".", initial_channels=[self.username])
 
     async def event_ready(self):
+        global subsAndStatus
         log.debugStart(moduleName, log.getFuncName())
 
-        global subsAndStatus
-        print(threading.current_thread())
+        if self.username != self.nick:
+            await self.close()
+            self.auth_error_f()
+            return
+
         playerDB.dbPlayers = playerDB.getPlayers()
 
         nimoniktr = await self.fetch_users(ids=[self.user_id])
         subs = await nimoniktr[0].fetch_subscriptions(token=self.token)
         for sub in subs:
             subsAndStatus.append([sub.user.name, False])
-        subsAndStatus.append(["yarabbi", False])
 
+        common.streamerName = self.nick
         common.readyDestroyLoginWindow = True
         common.readyOpenMainWindow = True
 
@@ -121,11 +127,11 @@ def isSubOnline(thisSub):
     return None
 
 
-def startTwitchBot(token, auth_error_f):
+def startTwitchBot(username, token, auth_error_f):
     global bot
 
     try:
-        bot = Bot(token)
+        bot = Bot(username, token, auth_error_f)
     except Exception as e:
         print("Bot can not be created.. ", e)
     try:
@@ -133,11 +139,11 @@ def startTwitchBot(token, auth_error_f):
     except twitchio.errors.AuthenticationError as e:
         print(e)
         auth_error_f()
-    # except Exception as e:
-    #     print("NAME EXCEPTION: ", e)
+    except Exception as e:
+        print("Error: ", e)
 
 
-def startTwitchIOThread(token, errorFunc):
+def startTwitchIOThread(username, token, errorFunc):
     global twitchThread
     policy = asyncio.get_event_loop_policy()
     policy._loop_factory = asyncio.SelectorEventLoop
@@ -146,7 +152,7 @@ def startTwitchIOThread(token, errorFunc):
     def run_loop(loop):
 
         asyncio.set_event_loop(loop)
-        startTwitchBot(token, errorFunc)
+        startTwitchBot(username, token, errorFunc)
         try:
             loop.run_forever()
         except RuntimeError as e:
